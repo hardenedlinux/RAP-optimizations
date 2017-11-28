@@ -41,7 +41,7 @@ CurrentAliasSet(x)
 
 计算两个集合：以procedure为粒度的avail集合，保存当前可以使用的procedure，为了从direct call的角度来优化PaX RAP的合法函数集合。另外一个是比较保守的kill集合，针对函数指针，从indirect call角度来优化PaX RAP的合法可间接调用函数集合。
 
-RAP计算函数hash的时候会使用Avail-direct-call()这个集合来为合法的可调用目标计算hash，这里会是一个动态的hash插入。
+RAP计算函数hash的时候会使用AvailDirectCall()这个集合来为合法的可调用目标计算hash，这里会是一个动态的hash插入。
 
 **TODO** ：
 RAP基于type来做hash计算，所以这里的计算会比较复杂。
