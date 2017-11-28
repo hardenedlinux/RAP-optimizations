@@ -46,13 +46,13 @@ RAP计算函数hash的时候会使用AvailDirectCall()这个集合来为合法�
 **TODO** ：
 RAP基于type来做hash计算，所以这里的计算会比较复杂。
 
-![avatar](./adc.png)
+![avatar](https://github.com/hardenedlinux/ARM64-RAP-explore/tree/master/resources/adc.png)
 
-![avatar](./idc.png)
+![avatar](https://github.com/hardenedlinux/ARM64-RAP-explore/tree/master/resources/idc.png)
 
 计算上面availIndirectCall的算法就是根据数据流方程做经典的不动点计算。
 
-![avatar](./aa.png)
+![avatar](https://github.com/hardenedlinux/ARM64-RAP-explore/tree/master/resources/aa.png)
 
 
 ## 02 epilogue
