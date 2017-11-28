@@ -1,4 +1,4 @@
-# A efficient algorithm for ARM64 PaX RAP
+# An efficient algorithm for ARM64 PaX RAP
 @(GCC)[GNU System-Security]
         --[zet](https://github.com/fanfuqiang)
 
