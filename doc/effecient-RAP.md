@@ -50,8 +50,9 @@ RAP基于type来做hash计算，所以这里的计算会比较复杂。
 
 ![avatar](./idc.png)
 
+计算上面availIndirectCall的算法就是根据数据流方程做经典的不动点计算。
 
-计算上面availIndirectCall的算法就是根据数据流方程做经典的不动点计算，此处略。
+![avatar](./aa.png)
 
 
 ## 02 epilogue
