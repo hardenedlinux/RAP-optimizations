@@ -13,6 +13,7 @@
  */
 
 #include "rap.h"
+#include "rap_opt.h"
 
 __visible int plugin_is_GPL_compatible;
 
