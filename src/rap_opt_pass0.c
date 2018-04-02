@@ -32,6 +32,8 @@ register_callback(plugin_name, PLUGIN_FINISH_DECL, rap_gather_fp, &fp_set);
 register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function, 
                   &func_set);
 
+
+#define RAP_POINTER_TO_FUNCTION(P) 
 /*
 
 */
@@ -39,16 +41,27 @@ extern void rap_gather_fp(void *decl, set *s)
 {
         /* If current declaration is variable and its type is funtion pointer 
            gather it */
-        if (decl)
-                add_to_set(s, decl);
+        tree t = (tree)decl;
+        /* Only care about pointer to function type */
+        if (TREE_CODE(t) == POINTER_TYPE 
+            && TREE_CODE(TREE_TYPE(t)) == FUNCTION_TYPE)
+                add_to_set(t, s);
+
+        return;
 }
 
 
 
 extern void rap_gather_avail_function(void *decl, set *s) 
 {
+        tree t = (tree)decl;
+        /* Gather function type what are our potential target */
+        if (TREE_CODE(t) == POINTER_TYPE)
+                add_to_set(t, s);
 
+        return;
 }
+
 
 
 /* Check current funtion whether a possible target for the function pointer.
