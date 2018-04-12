@@ -2,6 +2,7 @@
    We supply the API for RAP  */
 
 #include "gcc-common.h"
+#include "rap_opt.h"
 
 //#include "set.h"
 
@@ -33,7 +34,6 @@ register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function,
                   &func_set);
 
 
-#define RAP_POINTER_TO_FUNCTION(P) 
 /*
 
 */
