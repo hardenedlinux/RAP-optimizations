@@ -251,7 +251,12 @@ static void rap_begin_function(tree decl)
 	node = cgraph_get_node(decl);
 	gcc_assert(node);
 	if (!rap_cgraph_indirectly_callable(node)) {
-		imprecise_rap_hash.hash = 0;
+		/* File scope function*/
+                if (is_rap_function_never_escape (decl))
+                        return;
+                else
+                        gcc_checking_assert(0);
+		//imprecise_rap_hash.hash = 0;
 	} else {
 		imprecise_rap_hash = rap_hash_function_node_imprecise(node);
 	}

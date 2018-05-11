@@ -2,8 +2,7 @@
    We supply the API for RAP  */
 
 #include "gcc-common.h"
-#include "rap_opt.h"
-
+//#include "system.h"
 //#include "set.h"
 
 
@@ -23,17 +22,43 @@
    2, Global alias anylysis for the avail function set. */
 
 /* Contain function pointer variable */
-set fp_set;
+//set fp_set;
 
 /* Contain available funtion */
-set func_set;
+//set func_set;
 
 /* TODO, move this to rap plugin_init */
-register_callback(plugin_name, PLUGIN_FINISH_DECL, rap_gather_fp, &fp_set);
-register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function, 
-                  &func_set);
+//register_callback(plugin_name, PLUGIN_FINISH_DECL, rap_gather_fp, &fp_set);
+//register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function, 
+  //                &func_set);
 
+/* Test for function of file scope */
+extern bool is_rap_function_never_escape (tree t) {
+        /* We must call this procedure after IPA_PASS */
+        /* currect pass.pass.tv_id > TV_CGRAPHOPT */
+        /* gcc_checking_assert (TREE_CODE (t) == FUNCTION_DECL); */
+        struct cgraph_node *node =  cgraph_get_node(t);
 
+        gcc_checking_assert(node);
+        
+        /* Function is visible in current compilation unit only
+           and its address is never taken. */
+        if (node->local && node->local.local)
+                return true;
+
+        /* Function has NOT address taken */
+        /* Function is NOT visible by other units */
+        /* And we need the function is file scope, because we have not whole 
+           program optimization*/
+        else if (!(node->symbol.address_taken 
+                || node->symbol.externally_visible 
+                || TREE_PUBLIC(tree)))
+                return true;
+
+        return false;
+}
+
+#if 0
 /*
 
 */
@@ -67,9 +92,11 @@ extern void rap_gather_avail_function(void *decl, set *s)
 /* Check current funtion whether a possible target for the function pointer.
    
    If available return 0 otherwise return 1. */
+/*
 extern int rap_available_naive(tree p, tree func) 
 {
 
 
 }
-
+*/
+#endif

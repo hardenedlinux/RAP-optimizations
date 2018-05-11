@@ -1,0 +1,9 @@
+#
+!*/testcase/main.c
+tags
+*.o
+*.out
+*.s
+*.S
+*.dump
+

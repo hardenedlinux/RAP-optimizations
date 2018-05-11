@@ -2,6 +2,7 @@
 #define RAP_H_INCLUDED
 
 #include "gcc-common.h"
+#include "rap_opt.h"
 
 typedef struct {
 	int hash; // will be sign extended to long in reality
