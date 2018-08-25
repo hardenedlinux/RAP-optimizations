@@ -3,8 +3,6 @@
 
 #include "gcc-common.h"
 #include "bitmap.h"
-//#include "set.h"
-
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -22,20 +20,16 @@
    2, Global alias anylysis for the avail function set. */
 
 /* Contain function pointer variable */
-//set fp_set;
 
-/* Contain available funtion */
-//set func_set;
-
-/* TODO, move this to rap plugin_init */
 //register_callback(plugin_name, PLUGIN_FINISH_DECL, rap_gather_fp, &fp_set);
 //register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function, 
   //                &func_set);
 
-
 /* This variable defined in GCC source */
 struct opt_pass *current_pass;
 struct simple_ipa_opt_pass pass_ipa_pta;
+// Hold all the ROP target functions.
+bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
 /* Make sure we will call GCC ipa pta pass */
 void rap_make_sure_call_ipa_pta (void* gcc_data, void* user_data) 
@@ -44,7 +38,7 @@ void rap_make_sure_call_ipa_pta (void* gcc_data, void* user_data)
   bool init = false;
 
   //gcc_assert (current_pass);
-  if (current_pass && (void*)current_pass == (void*)pass_ipa_pta)
+  if (current_pass && (void*)current_pass == (void*)&pass_ipa_pta)
   {
     *(bool*)gcc_data = true;
     init = true;
@@ -82,106 +76,55 @@ bool is_rap_function_never_escape (tree t) {
         return false;
 }
 
-/* Basic test */  
-
+/* Gather what functions never may be indirected called */
 void rap_gather_function_targets ()
 {
   struct cgraph_node *node;
   struct varpool_node *var;
-  int from;
-
-  /* Gather function pointer infos from every variable */
+  struct ptr_info_def *pi = NULL;
+  bitmap set = NULL;
+  
+  /* Gather function pointer infos from global may available variable */
   FOR_EACH_VARIABLE (var)
     {
       if (var->alias)
-	continue;
-
+	      continue;
+      gcc_assert(var->symbol.decl);
+      set = (SSA_NAME_PTR_INFO(var->symbol.decl))->pt.vars;
+      if (! bitmap_empty_p(set))
+        bitmap_ior_into(sensi_funcs, set);
     }
-  
   /* Gather function pointer infos from every function */
   FOR_EACH_DEFINED_FUNCTION (node)
     {
       struct function *func;
-      basic_block bb;
+      tree fp = NULL;
+      int i;
+      set = NULL;
 
       /* Nodes without a body are not interesting.  */
       if (!cgraph_function_with_gimple_body_p (node))
-	continue;
-
+	      continue;
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
+      /* Function pointers will be SSA_NAME contained in current function, 
+        When gcc after pointer analysis we gather all the functions may be 
+        pointed by some function pointer and we ignore which function pointer
+        can access it. All this gathered function are the sensitive data, need
+        RAP add guard instruction. */
 
-      /* Gather function pointer infos from the function body.  */
-      FOR_EACH_BB_FN (bb, func)
-	{
-	  gimple_stmt_iterator gsi;
+      for (i = 0, pi = NULL; fp = ssa_name (i); i++)
+        {
+          if (pi = SSA_NAME_PTR_INFO(fp))
+            if (! bitmap_empty_p(set = pi->pt.vars))
+              bitmap_ior_into(sensi_funcs, set);
+          pi = NULL;
+        }
+    } // FOR_EACH_DEFINED_FUNCTION (node)
 
-	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
-	    {
-	      gimple stmt = gsi_stmt (gsi);
+  return;
+} // end of rap_gather_function_targets
 
-	      find_func_aliases (stmt);
-	    }
-	}
-
-      pop_cfun ();
-    }
-
-  /* Assign the points-to sets to the SSA names in the unit.  */
-  FOR_EACH_DEFINED_FUNCTION (node)
-    {
-      tree ptr;
-      struct function *fn;
-      unsigned i;
-      basic_block bb;
-
-      /* Nodes without a body are not interesting.  */
-      if (!cgraph_function_with_gimple_body_p (node))
-	continue;
-
-      fn = DECL_STRUCT_FUNCTION (node->symbol.decl);
-
-      /* Compute the points-to sets for pointer SSA_NAMEs.  */
-      FOR_EACH_VEC_ELT (*fn->gimple_df->ssa_names, i, ptr)
-	{
-	  if (ptr
-	      && POINTER_TYPE_P (TREE_TYPE (ptr)))
-	    //find_what_p_points_to (ptr);
-	}
-
-      FOR_EACH_BB_FN (bb, fn)
-	{
-	  gimple_stmt_iterator gsi;
-
-	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
-	    {
-	      gimple stmt = gsi_stmt (gsi);
-	      struct pt_solution *pt;
-	      tree decl;
-
-	      if (!is_gimple_call (stmt))
-		continue;
-
-	      /* Handle direct calls to external functions.  */
-	      decl = gimple_call_fndecl (stmt);
-
-	      /* Handle indirect calls.  */
-	      if (!decl
-		  && (fi = get_fi_for_callee (stmt)))
-		{
-
-		}
-	    }
-	}
-    }
-  //
-  bitmap ignore_funcs = BITMAP_ALLOC (NULL);
-  //
-  bitmap_bit_p (ignore_funcs, DECL_UID (symbol));
-  //
-  BITMAP_FREE(ignore_funcs);
-}
-// int call_flags = gimple_call_flags (stmt);
 static inline bool 
 is_rap_function_may_be_aliased (tree f)
 {
@@ -194,45 +137,12 @@ is_rap_function_may_be_aliased (tree f)
 	      || TREE_ADDRESSABLE (f)));
 }
 
-#if 0
-/*
 
-*/
-extern void rap_gather_fp(void *decl, set *s)
+/* Look up current function weather or not beed gathered into our target
+   function set. If NOT return 1 otherwise return 0 */
+int 
+is_rap_function_maybe_roped (tree f)
 {
-        /* If current declaration is variable and its type is funtion pointer 
-           gather it */
-        tree t = (tree)decl;
-        /* Only care about pointer to function type */
-        if (TREE_CODE(t) == POINTER_TYPE 
-            && TREE_CODE(TREE_TYPE(t)) == FUNCTION_TYPE)
-                add_to_set(t, s);
-
-        return;
+  return ! bitmap_bit_p(DECL_UID(f));
 }
 
-
-
-extern void rap_gather_avail_function(void *decl, set *s) 
-{
-        tree t = (tree)decl;
-        /* Gather function type what are our potential target */
-        if (TREE_CODE(t) == POINTER_TYPE)
-                add_to_set(t, s);
-
-        return;
-}
-
-
-
-/* Check current funtion whether a possible target for the function pointer.
-   
-   If available return 0 otherwise return 1. */
-/*
-extern int rap_available_naive(tree p, tree func) 
-{
-
-
-}
-*/
-#endif
