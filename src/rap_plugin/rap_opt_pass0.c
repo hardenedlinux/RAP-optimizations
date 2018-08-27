@@ -98,27 +98,27 @@ void rap_gather_function_targets ()
   FOR_EACH_DEFINED_FUNCTION (node)
     {
       struct function *func;
-      tree fp = NULL;
-      int i;
+      //tree fp = NULL;
+      tree p;
+      unsigned i;
       set = NULL;
 
       /* Nodes without a body are not interesting.  */
       if (!cgraph_function_with_gimple_body_p (node))
 	      continue;
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
-      push_cfun (func);
+      //push_cfun (func);
       /* Function pointers will be SSA_NAME contained in current function, 
         When gcc after pointer analysis we gather all the functions may be 
         pointed by some function pointer and we ignore which function pointer
         can access it. All this gathered function are the sensitive data, need
         RAP add guard instruction. */
-
-      for (i = 0, pi = NULL; fp = ssa_name (i); i++)
-        {
-          if (pi = SSA_NAME_PTR_INFO(fp))
-            if (! bitmap_empty_p(set = pi->pt.vars))
-              bitmap_ior_into(sensi_funcs, set);
-          pi = NULL;
+      FOR_EACH_VEC_ELT (func->gimple_df->ssa_names, i, p)
+	{
+	  if (p && POINTER_TYPE_P (TREE_TYPE (p)))
+            if (pi = SSA_NAME_PTR_INFO(p))
+              if (! bitmap_empty_p(set = pi->pt.vars))
+                bitmap_ior_into(sensi_funcs, set);
         }
     } // FOR_EACH_DEFINED_FUNCTION (node)
 
