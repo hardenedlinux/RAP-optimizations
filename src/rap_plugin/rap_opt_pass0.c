@@ -1,7 +1,7 @@
 /* The impelmentation code of optimization pass for RAP.
    We supply the API for RAP  */
 
-#include "gcc-common.h"
+#include "../gcc-common.h"
 #include "bitmap.h"
 
 /* There are many optimization methrod can do for RAP.
@@ -19,11 +19,6 @@
    
    2, Global alias anylysis for the avail function set. */
 
-/* Contain function pointer variable */
-
-//register_callback(plugin_name, PLUGIN_FINISH_DECL, rap_gather_fp, &fp_set);
-//register_callback(plugin_name, PLUGIN_FINISH_UNIT, rap_gather_avail_function, 
-  //                &func_set);
 
 /* This variable defined in GCC source */
 struct opt_pass *current_pass;
@@ -31,81 +26,129 @@ struct simple_ipa_opt_pass pass_ipa_pta;
 // Hold all the ROP target functions.
 bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
-/* Make sure we will call GCC ipa pta pass */
-void rap_make_sure_call_ipa_pta (void* gcc_data, void* user_data) 
+/* Contains the beed called optimization level of GCC */
+int gcc_optimize_level = 0;
+/* Count how many function we have optimized */
+int rap_opt_statistics = 0;
+/* Contains the type database which are pointer analysis can not sloved */
+static struct pointer_set_t *pointer_types;
+
+/* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
+void 
+rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
 {
   /* Make sure we have reach */
   bool init = false;
 
   //gcc_assert (current_pass);
-  if (current_pass && (void*)current_pass == (void*)&pass_ipa_pta)
-  {
-    *(bool*)gcc_data = true;
-    init = true;
-  }
+  if (current_pass 
+      && 
+      ((void*)current_pass == (void*)&pass_ipa_pta))
+    {
+      *(bool*)gcc_data = true;
+      init = true;
+      /* The variable optimize is defined int GCC */
+      *(int*)user_data = optimize;
+    }
   gcc_assert (init);
 
   return;
 }
 
+/* Tools for type database operates */
+static void
+insert_type_db (tree t)
+{
+  tree ty = TREE_TYPE (t);
 
-/* Test for function of file scope */
-bool is_rap_function_never_escape (tree t) {
-        /* We must call this procedure after IPA_PASS */
-        /* currect pass.pass.tv_id > TV_CGRAPHOPT */
-        /* gcc_checking_assert (TREE_CODE (t) == FUNCTION_DECL); */
-#if 0
-        struct cgraph_node *node =  cgraph_get_node(t);
+  if (! pointer_types)
+    pointer_types = pointer_set_create ();
 
-        gcc_checking_assert(node);
-        
-        /* Function is visible in current compilation unit only
-           and its address is never taken. */
-        if (/*node->local && */ node->local.local)
-                return true;
+  gcc_assert (FUNCTION_POINTER_TYPE_P (t));
+  pointer_set_insert (pointer_types, (const void *)ty);
 
-        /* Function has NOT address taken */
-        /* Function is NOT visible by other units */
-        /* And we need the function is file scope, because we have not whole 
-           program optimization*/
-        else if (!(node->symbol.address_taken 
-                || node->symbol.externally_visible 
-                || TREE_PUBLIC(t)))
-                return true;
-#endif
-        return false;
+  return;
 }
 
-/* Gather what functions never may be indirected called */
-void rap_gather_function_targets ()
+
+/* If after alias analysis some function pointer may be point anything, we have
+   to make the conservation solution, contain and cache the the point to type,
+   when emit RAP guard code, make sure all the functions of the compatible type
+   NOT igonred and optimized 
+   Return value is trivial */
+static bool
+rap_base_type_db_fliter (const void *db_type, void *fn)
+{
+  tree f = (tree) fn;
+  gcc_assert (TREE_CODE (f) == FUNCTION_DECL);
+  if (types_compatible_p ((tree)db_type, TREE_TYPE(f)))
+    if (bitmap_clear_bit (sensi_funcs, DECL_UID(f)))
+      return true;
+
+  return true;
+}
+
+/* The real worker */
+static void
+rap_gather_function_targets_1 (tree t)
+{
+  //types_compatible_p()
+  //TREE_TYPE()
+  //FUNCTION_POINTER_TYPE_P()
+  struct ptr_info_def *pi;
+  bitmap set;
+  pi = SSA_NAME_PTR_INFO (t);
+  if (pi && pi->pt)
+    {
+      if (pi->pt.anything)
+        /* we are in trouble, pointer analysis can not give any answer about 
+           this pointer point to */
+        insert_type_db (t);
+    }
+  else
+    {
+      set = pi->pt.vars;
+      if (! bitmap_empty_p (set))
+        bitmap_ior_into (sensi_funcs, set);
+    }
+
+  return;
+}
+
+/* Entry point of build the oracle, gather what functions never may be 
+   indirected called */
+void 
+rap_gather_function_targets ()
 {
   struct cgraph_node *node;
   struct varpool_node *var;
-  struct ptr_info_def *pi = NULL;
-  bitmap set = NULL;
-  
+  tree t;
+  struct function *func;
+  unsigned int i;
+
+  /* This optimization depend on GCC optimizations */
+  if (0 == gcc_optimize_level)
+    return;
+
   /* Gather function pointer infos from global may available variable */
   FOR_EACH_VARIABLE (var)
     {
       if (var->alias)
-	      continue;
-      gcc_assert(var->symbol.decl);
-      set = (SSA_NAME_PTR_INFO(var->symbol.decl))->pt.vars;
-      if (! bitmap_empty_p(set))
-        bitmap_ior_into(sensi_funcs, set);
+	continue;
+      gcc_assert (t = var->symbol.decl);
+      /* We only care about function pointer variables */
+      if (! FUNCTION_POINTER_TYPE_P (t))
+	continue;
+      rap_gather_function_targets_1 (t);
     }
   /* Gather function pointer infos from every function */
   FOR_EACH_DEFINED_FUNCTION (node)
     {
-      struct function *func;
-      //tree fp = NULL;
-      tree p;
-      unsigned i;
-      set = NULL;
+      t = NULL;
 
       /* Nodes without a body are not interesting.  */
       if (!cgraph_function_with_gimple_body_p (node))
-	      continue;
+	continue;
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       //push_cfun (func);
       /* Function pointers will be SSA_NAME contained in current function, 
@@ -113,18 +156,37 @@ void rap_gather_function_targets ()
         pointed by some function pointer and we ignore which function pointer
         can access it. All this gathered function are the sensitive data, need
         RAP add guard instruction. */
-      FOR_EACH_VEC_ELT (func->gimple_df->ssa_names, i, p)
+      FOR_EACH_VEC_ELT (func->gimple_df->ssa_names, i, t)
 	{
-	  if (p && POINTER_TYPE_P (TREE_TYPE (p)))
-            if (pi = SSA_NAME_PTR_INFO(p))
-              if (! bitmap_empty_p(set = pi->pt.vars))
-                bitmap_ior_into(sensi_funcs, set);
+	  if (! (t || FUNCTION_POINTER_TYPE_P (t)))
+	    continue;
+	  rap_gather_function_targets_1 (t);
         }
     } // FOR_EACH_DEFINED_FUNCTION (node)
+  
+  /* We have see all of the data about alias and build the type database, It's 
+     time for the final fliter */
+  if (! pointer_types)
+    return;
+  /* fial fliter */
+  FOR_EACH_DEFINED_FUNCTION (node)
+    {
+      t = NULL;
+
+      /* Nodes without a body are not interesting.  */
+      if (!cgraph_function_with_gimple_body_p (node))
+	continue;
+      func = DECL_STRUCT_FUNCTION (node->symbol.decl);
+      pointer_set_traverse (pointer_types, 
+		            rap_base_type_db_fliter,
+		            func);
+    }
 
   return;
 } // end of rap_gather_function_targets
 
+
+/* Basic test of function nature */
 static inline bool 
 is_rap_function_may_be_aliased (tree f)
 {
@@ -137,12 +199,14 @@ is_rap_function_may_be_aliased (tree f)
 	      || TREE_ADDRESSABLE (f)));
 }
 
-
-/* Look up current function weather or not beed gathered into our target
-   function set. If NOT return 1 otherwise return 0 */
+/* Entry point of the oracle, look up current function weather or not beed
+   gathered into our target function set. If NOT return 1 otherwise return 0 */
 int 
 is_rap_function_maybe_roped (tree f)
 {
-  return ! bitmap_bit_p(DECL_UID(f));
+  if (0 == gcc_optimize_level)
+    return ! is_rap_function_may_be_aliased (f);
+  else
+    return ! bitmap_bit_p (DECL_UID (f))
 }
 
