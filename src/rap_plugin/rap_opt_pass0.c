@@ -1,8 +1,8 @@
 /* The impelmentation code of optimization pass for RAP.
-   We supply the API for RAP  */
+   Supply the API for RAP  */
 
 #include "../gcc-common.h"
-#include "bitmap.h"
+#include <stdio.h>
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -20,16 +20,16 @@
    2, Global alias anylysis for the avail function set. */
 
 
-/* This variable defined in GCC source */
-struct opt_pass *current_pass;
-struct simple_ipa_opt_pass pass_ipa_pta;
-// Hold all the ROP target functions.
-bitmap sensi_funcs = BITMAP_ALLOC (NULL);
-
 /* Contains the beed called optimization level of GCC */
 int gcc_optimize_level = 0;
 /* Count how many function we have optimized */
 int rap_opt_statistics = 0;
+/* Contain the statistics data, maybe gcc will called many times, we need output
+   data in the same file, for the conventices of scripts process. */
+char *dump_rap_opt_statistics_filename = "rap_opt_statistics";
+FILE *dump_rap_opt_statistics_fd;
+// Hold all the ROP target functions.
+static bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
 
@@ -208,5 +208,27 @@ is_rap_function_maybe_roped (tree f)
     return ! is_rap_function_may_be_aliased (f);
   else
     return ! bitmap_bit_p (DECL_UID (f))
+}
+
+/* Write some statistics for our algorithm */
+void
+dump_rap_opt_statistics ()
+{
+  dump_rap_opt_statistics_fd = fopen (dump_rap_opt_statistics_filename, "a");
+  fprintf (dump_rap_opt_statistics_fd, "%d\n", rap_opt_statistics);
+
+  return;
+}
+
+/* Clean and cloese function for optimizations */
+void
+rap_optimization_clean ()
+{
+  /* Now we have finish our job, close file and destroy the GCC allocated data*/
+  fclose (dump_rap_opt_statistics_fd);
+  bitmap_clear (sensi_funcs);
+  pointer_set_destroy (pointer_types);
+
+  return;
 }
 
