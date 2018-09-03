@@ -1,4 +1,6 @@
-/* The impelmentation code of optimization pass for RAP.
+/* Write by David fuqiang Fan <feqin1023@gmail.com>, member of HardenedLinux.
+   Licensed under the GPL v2
+   The impelmentation code of optimization pass for RAP.
    Supply the API for RAP  */
 
 #ifndef RAP_OPT_H
