@@ -748,7 +748,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL, &rap_plugin_info);
 	/* register the rap optimization*/
-        register_callback("rap_optimization", PLUGIN_OVERRIDE_GATE, rap_make_sure_ipa_pta, NULL);
+        register_callback("rap_optimization", PLUGIN_OVERRIDE_GATE, rap_try, NULL);
 
 	if (enable_type_ret) {
 		flag_crossjumping = 0;

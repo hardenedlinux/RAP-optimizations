@@ -200,14 +200,19 @@ is_rap_function_may_be_aliased (tree f)
 }
 
 /* Entry point of the oracle, look up current function weather or not beed
-   gathered into our target function set. If NOT return 1 otherwise return 0 */
+   gathered into our target function set. If YES return 1 otherwise return 0 */
 int 
 is_rap_function_maybe_roped (tree f)
 {
+  if (! is_rap_function_may_be_aliased (f))
+    return 0;
+  /* Ask the oracle for help */
   if (0 == gcc_optimize_level)
-    return ! is_rap_function_may_be_aliased (f);
+    /* Function is_rap_function_may_be_aliased() must be failed we arive here, 
+       but our oracle dependent the GCC optimizations. */
+    return 1;
   else
-    return ! bitmap_bit_p (DECL_UID (f))
+    return bitmap_bit_p (DECL_UID (f))
 }
 
 /* Write some statistics for our algorithm */
