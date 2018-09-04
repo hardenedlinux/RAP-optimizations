@@ -20,8 +20,8 @@ clean:
 	rm -f $(OBJS) $(RAP)
 .PHONY: test_asm
 test_asm:
-	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call -S ./testcase/main.c
+	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call -S ../../testcase/main.c
 .PHONY: test_bin
 test_bin:
-	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call ./testcase/main.c
+	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call ../../testcase/main.c
 

@@ -113,6 +113,9 @@ static void rap_instrument_fptr(gimple_stmt_iterator *gsi)
 		gcc_unreachable();
 	}
 
+	/* Try rap optimization */
+	
+
 	if (UNITS_PER_WORD == 8)
 		rap_hash_offset = 2 * sizeof(rap_hash_t);
 	else if (UNITS_PER_WORD == 4)

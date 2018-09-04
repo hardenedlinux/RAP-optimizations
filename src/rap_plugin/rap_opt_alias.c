@@ -3,9 +3,10 @@
    The impelmentation code of optimization pass for RAP.
    Supply the API for RAP  */
 
-#include "gcc-common.h"
 #include <stdio.h>
-
+#include "rap.h"
+//#include "../include/pointer-set.h"
+ 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
 
@@ -21,14 +22,16 @@
    
    2, Global alias anylysis for the avail function set. */
 
+/* This data structure defined in gcc source. */
+//extern struct simple_ipa_opt_pass pass_ipa_pta;
 
 /* Contains the beed called optimization level of GCC */
 int gcc_optimize_level = 0;
 /* Count how many function we have optimized */
-int rap_opt_statistics = 0;
+int rap_opt_statistics_data = 0;
 /* Contain the statistics data, maybe gcc will called many times, we need output
    data in the same file, for the conventices of scripts process. */
-char *dump_rap_opt_statistics_filename = "rap_opt_statistics";
+const char *dump_rap_opt_statistics_filename = "rap_opt_statistics_dump";
 FILE *dump_rap_opt_statistics_fd;
 // Hold all the ROP target functions.
 static bitmap sensi_funcs = BITMAP_ALLOC (NULL);
@@ -100,7 +103,7 @@ rap_gather_function_targets_1 (tree t)
   struct ptr_info_def *pi;
   bitmap set;
   pi = SSA_NAME_PTR_INFO (t);
-  if (pi && pi->pt)
+  if (pi)
     {
       if (pi->pt.anything)
         /* we are in trouble, pointer analysis can not give any answer about 
@@ -158,7 +161,7 @@ rap_gather_function_targets ()
         pointed by some function pointer and we ignore which function pointer
         can access it. All this gathered function are the sensitive data, need
         RAP add guard instruction. */
-      FOR_EACH_VEC_ELT (func->gimple_df->ssa_names, i, t)
+      FOR_EACH_VEC_ELT (*func->gimple_df->ssa_names, i, t)
 	{
 	  if (! (t || FUNCTION_POINTER_TYPE_P (t)))
 	    continue;
@@ -214,7 +217,7 @@ is_rap_function_maybe_roped (tree f)
        but our oracle dependent the GCC optimizations. */
     return 1;
   else
-    return bitmap_bit_p (DECL_UID (f))
+    return bitmap_bit_p (sensi_funcs, DECL_UID (f));
 }
 
 /* Write some statistics for our algorithm */
@@ -222,7 +225,7 @@ void
 dump_rap_opt_statistics ()
 {
   dump_rap_opt_statistics_fd = fopen (dump_rap_opt_statistics_filename, "a");
-  fprintf (dump_rap_opt_statistics_fd, "%d\n", rap_opt_statistics);
+  fprintf (dump_rap_opt_statistics_fd, "%d\n", rap_opt_statistics_data);
 
   return;
 }

@@ -190,7 +190,7 @@ static void rap_begin_function(tree decl)
 	gcc_assert(node);
 	if (!rap_cgraph_indirectly_callable(node)) {
                 /* File scope function*/
-                if (is_rap_function_never_escape (decl))
+                if (! is_rap_function_maybe_roped (decl))
                         return;
                 else
                         gcc_checking_assert(0);
