@@ -4,7 +4,9 @@
    Supply the API for RAP  */
 
 #include <stdio.h>
+#include <string.h>
 #include "rap.h"
+#include "tree-pass.h"
 //#include "../include/pointer-set.h"
  
 /* There are many optimization methrod can do for RAP.
@@ -48,7 +50,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   //gcc_assert (current_pass);
   if (current_pass 
       && 
-      ((void*)current_pass == (void*)&pass_ipa_pta))
+      (! strcmp (((struct opt_pass *)current_pass)->name, "pta")))
     {
       *(bool*)gcc_data = true;
       init = true;
