@@ -36,16 +36,19 @@ int rap_opt_statistics_data = 0;
 const char *dump_rap_opt_statistics_filename = "rap_opt_statistics_dump";
 FILE *dump_rap_opt_statistics_fd;
 // Hold all the ROP target functions.
-static bitmap sensi_funcs = BITMAP_ALLOC (NULL);
+static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
+//
+static bool will_call_ipa_pta;
+
 
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
 {
   /* Make sure we have reach */
-  bool init = false;
+  bool will_call_ipa_pta = false;
 
   //gcc_assert (current_pass);
   if (current_pass 
@@ -53,11 +56,10 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
       (! strcmp (((struct opt_pass *)current_pass)->name, "pta")))
     {
       *(bool*)gcc_data = true;
-      init = true;
       /* The variable optimize is defined int GCC */
       *(int*)user_data = optimize;
     }
-  gcc_assert (init);
+  //gcc_assert (init);
 
   return;
 }
@@ -136,6 +138,9 @@ rap_gather_function_targets ()
   /* This optimization depend on GCC optimizations */
   if (0 == gcc_optimize_level)
     return;
+  // 
+  gcc_assert (will_call_ipa_pta);
+  bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
   /* Gather function pointer infos from global may available variable */
   FOR_EACH_VARIABLE (var)
