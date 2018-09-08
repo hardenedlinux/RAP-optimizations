@@ -1,29 +1,32 @@
 #include <stdio.h>
 
 volatile int global = 40;
-int (*gpf) (const char *);
-
-static int ignore (int i, double d) {
-        return i - d;
+//int (*gpf) (const char *);
+static int direct (int i) {
+        return i + 1;
 }
 
-int zet (int i, double d) {
-        return i + d;
+static int ignore (int i) {
+        return i + 1;
+}
+
+int zet (int i) {
+        return i + 2;
 }
 
 int main () {
         volatile int i = 2;
-        int (*pf) (int, double);
+        int (*pf) (int);
         pf = zet;
-        gpf = puts;
+        //gpf = puts;
 
-        i = pf (i, global);
-        i += ignore (i, global);
+        i = pf (global);
+        i += direct (global);
         pf = ignore;
-        i += pf (i, global);
-        gpf ("value: ");
+        i += pf (global);
+        //gpf ("value: ");
         printf ("%d\n", i);
 
-        return i + 2;
+        return 0;
 }
 

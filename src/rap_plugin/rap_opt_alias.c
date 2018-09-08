@@ -208,7 +208,7 @@ is_rap_function_may_be_aliased (tree f)
 	       && !TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (f)))
 	  && (TREE_PUBLIC (f)
 	      || DECL_EXTERNAL (f)
-	      || TREE_ADDRESSABLE (f)));
+	      /*|| TREE_ADDRESSABLE (f)*/ ));
 }
 
 /* Entry point of the oracle, look up current function weather or not beed

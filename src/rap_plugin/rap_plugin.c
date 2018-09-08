@@ -189,18 +189,18 @@ static void rap_begin_function(tree decl)
 	node = cgraph_get_node(decl);
 	gcc_assert(node);
 	if (!rap_cgraph_indirectly_callable(node)) {
-                /* File scope function*/
-                if (! is_rap_function_maybe_roped (decl))
-                        return;
-                else
-                        gcc_checking_assert(0);
-		//imprecise_rap_hash.hash = 0;
+		imprecise_rap_hash.hash = 0;
 	} else {
 		imprecise_rap_hash = rap_hash_function_node_imprecise(node);
 	}
 
 	if (report_func_hash)
 		inform(DECL_SOURCE_LOCATION(decl), "func rap_hash: %x %s", imprecise_rap_hash.hash, IDENTIFIER_POINTER(DECL_ASSEMBLER_NAME(decl)));
+
+	/* We do not have any risk, we do not need the hash key before the function. */
+	if (! is_rap_function_maybe_roped (decl)) {
+		return;
+	}
 
 	if (UNITS_PER_WORD == 8)
 		fprintf(asm_out_file, "\t.quad %#llx\t%s __rap_hash_call_%s\n", (long long)imprecise_rap_hash.hash, ASM_COMMENT_START, IDENTIFIER_POINTER(DECL_ASSEMBLER_NAME(decl)));
