@@ -198,7 +198,9 @@ static void rap_begin_function(tree decl)
 		inform(DECL_SOURCE_LOCATION(decl), "func rap_hash: %x %s", imprecise_rap_hash.hash, IDENTIFIER_POINTER(DECL_ASSEMBLER_NAME(decl)));
 
 	/* We do not have any risk, we do not need the hash key before the function. */
-	if (! is_rap_function_maybe_roped (decl)) {
+	if (0 == imprecise_rap_hash.hash 
+	     && 
+	     ! is_rap_function_maybe_roped (decl)) {
 		return;
 	}
 
