@@ -1,5 +1,11 @@
-/* Writed by David fuqiang Fan<feqin1023@gmail.com> of HardenedLinux
-   Licensed under the GPL v2 */
+/*
+ * Copyright 2012-2017 by PaX Team <pageexec@freemail.hu>
+ * Copyright 2018 by David fuqiang Fan<feqin1023@gmail.com> of HardenedLinux
+ * Licensed under the GPL v2
+ *
+ * Some of source code is from the last public patch of PaX/Grsecurity
+ * Homepage: http://pax.grsecurity.net/
+ */
 
 #include "rap.h"
 
