@@ -42,6 +42,21 @@ static struct pointer_set_t *pointer_types;
 //
 static bool will_call_ipa_pta;
 
+/* Test GCC will call some passes which is benefit. */
+void 
+rap_check_will_call_passes (void* gcc_data, void* user_data) 
+{
+  //gcc_assert (current_pass);
+  if (current_pass 
+      && 
+      (! strcmp (((struct opt_pass *)current_pass)->name, "inline")))
+    {
+      if (*(bool*)gcc_data)
+	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass inline\n");
+    }
+
+  return;
+}
 
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
