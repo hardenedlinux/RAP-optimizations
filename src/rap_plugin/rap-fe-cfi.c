@@ -1,7 +1,9 @@
 /* Write by David fuqiang Fan <feqin1023@gmail.com>, member of HardenedLinux.
-   Licensed under the GPL v2
-   The impelmentation code of optimization pass for RAP.
-   Supply the API for RAP  */
+   The impelmentation code of optimization pass for PaX RAP.
+   Supply the API for RAP.
+   And we also call function wich compute function type hash from PaX RAP.
+
+   Licensed under the GPL v2. */
 
 #include <stdio.h>
 #include <string.h>
@@ -263,4 +265,66 @@ rap_optimization_clean ()
 
   return;
 }
+
+
+// types_compatible_p
+/*
+
+cgraph_local_node_p 
+
+types_compatible_p
+flag_ltrans
+flag_lto
+
+
+*/
+
+/* This new pass will be added after the GCC pass lower. */	
+static unsigned int
+rap_fe_cfi_execute ()
+{
+  struct cgraph_node *node;
+  if (! flag_ltrans)
+    gcc_assert(0);
+  struct pointer_map_t *indirect_function_maps;
+  
+  FOR_EACH_DEFINED_FUNCTION (node)
+    {
+      struct function *func;
+      basic_block bb;
+      
+      /* Without body not our intent. */
+      if (!cgraph_function_with_gimple_body_p (node))
+	continue;
+
+      func = DECL_STRUCT_FUNCTION (node->symbol.decl);
+      push_cfun (func);
+      
+      //
+      FOR_EACH_BB_FN (bb, func)
+	{
+	  gimple_stmt_iterator gsi;
+
+	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	    {
+	      gimple stmt = gsi_stmt (gsi);
+
+	      find_func_aliases (stmt);
+	      find_func_clobbers (stmt);
+	    }
+	}
+
+      pop_cfun ();
+
+  
+    }
+
+  indirect_function_maps = pointer_map_create (); 
+  gimple_call_fndecl (const_gimple gs)
+}
+
+#define PASS_NAME rap_fe_cfi
+#define PROPERTIES_REQUIRED PROP_gimple_any
+#define PROPERTIES_PROVIDED PROP_gimple_lcf
+#include "gcc-generate-gimple-pass.h"
 
