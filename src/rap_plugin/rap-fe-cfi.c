@@ -279,7 +279,7 @@ flag_lto
 
 */
 
-/* This new pass will be added after the GCC pass lower. */	
+/* This new pass will be added after the GCC pass ipa "pta". */
 static unsigned int
 rap_fe_cfi_execute ()
 {
@@ -309,8 +309,6 @@ rap_fe_cfi_execute ()
 	    {
 	      gimple stmt = gsi_stmt (gsi);
 
-	      find_func_aliases (stmt);
-	      find_func_clobbers (stmt);
 	    }
 	}
 
@@ -324,7 +322,9 @@ rap_fe_cfi_execute ()
 }
 
 #define PASS_NAME rap_fe_cfi
-#define PROPERTIES_REQUIRED PROP_gimple_any
-#define PROPERTIES_PROVIDED PROP_gimple_lcf
-#include "gcc-generate-gimple-pass.h"
+//#define PROPERTIES_REQUIRED PROP_gimple_any
+//#define PROPERTIES_PROVIDED PROP_gimple_lcf
+#define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
+	TODO_remove_unused_locals | TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
+#include "gcc-generate-simple_ipa-pass.h"
 
