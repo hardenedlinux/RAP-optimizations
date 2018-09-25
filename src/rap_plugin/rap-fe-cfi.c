@@ -1,7 +1,9 @@
 /* Write by David fuqiang Fan <feqin1023@gmail.com>, member of HardenedLinux.
-   The impelmentation code of optimization pass for PaX RAP.
+   The code of this file try to make some optimizationsfor  PaX RAP.
    Supply the API for RAP.
+
    And we also call function wich compute function type hash from PaX RAP.
+   Code architecture inspired by RAP of PaX Team <pageexec@freemail.hu>.
 
    Licensed under the GPL v2. */
 
@@ -268,18 +270,41 @@ rap_optimization_clean ()
   return;
 }
 
+#define MAKE_TARGET_HASH_TREE 1
+
+/* */
+static inline tree
+make_cfi_check_tree ()
+{
+  tree target_hash;  // hash get behind the function definitions.
+  tree source_hash;  // hash get before indirect calls.
+  tree var;
+  var = create_tmp_var (integer_type_node, "hl");
+
+}
+
+
 /* Build the check statement: 
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
      error () */
-static void
-build_cfi_check (gimple cs, rap_hash_value_type hash)
+static inline void
+build_cfi_check (gimple_stmt_iterator *gp, rap_hash_value_type hash)
 {
+  gimple cs;
+  //gimple_stmt_iterator gsi;
   tree decl; type;
+
   gcc_assert (is_gimple_call (cs));
+  cs = gsi_stmt (*gp);
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
-  gcc_assert (DECL_CODE (decl) == SSA_NAME);
+  gcc_assert (TREE_CODE (decl) == SSA_NAME);
+  gcc_assert (! SSA_NAME_IS_DEFAULT_DEF (decl));
   type = cs->gimple_call.u.fntype;
+  gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == type);
+
+
+
 
 }
 
@@ -300,9 +325,9 @@ static unsigned int
 rap_fe_cfi_execute ()
 {
   struct cgraph_node *node;
-  if (! flag_ltrans)
-    gcc_assert(0);
-  struct pointer_map_t *indirect_function_maps;
+  //if (! flag_ltrans)
+    //gcc_assert(0);
+  //struct pointer_map_t *indirect_function_maps;
   
   FOR_EACH_DEFINED_FUNCTION (node)
     {
@@ -322,20 +347,17 @@ rap_fe_cfi_execute ()
 
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	    {
-	      tree decl;
+	      //tree decl;
 	      gimple cs;
 	      rap_hash_value_type hash;
 	      cs = gsi_stmt (gsi);
 	      /* We are in forward cfi only cares about function call */
 	      if (! is_gimple_call (cs))
 		continue;
-	      /* direct call, nothing todo */
-	      if (gimple_call_fndecl (cs))
-	        ;
-	      /* indirect call */
-	      else
+	      /* Indirect calls */
+	      if (NULL == gimple_call_fndecl (cs))
 	        {
-		  decl = gimple_call_fn (cs);
+		  //decl = gimple_call_fn (cs);
 		  hash = find_cfi_hash (decl);
 		  gcc_assert (hash);
 		  build_cfi_check (cs, hash);
@@ -345,11 +367,13 @@ rap_fe_cfi_execute ()
 
       pop_cfun ();
     }
+  //indirect_function_maps = pointer_map_create (); 
+  //gimple_call_fndecl (const_gimple gs)
 
-  indirect_function_maps = pointer_map_create (); 
-  gimple_call_fndecl (const_gimple gs)
+  return 0;
 }
 
+/* Genetate the pass structure */
 #define PASS_NAME rap_fe_cfi
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
