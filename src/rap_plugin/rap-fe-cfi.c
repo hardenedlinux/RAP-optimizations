@@ -43,6 +43,8 @@ static bitmap sensi_funcs;
 static struct pointer_set_t *pointer_types;
 //
 static bool will_call_ipa_pta;
+/* For compatiable with the original RAP */
+typedef rap_hash_t.hash rap_hash_value_type;
 
 /* Test GCC will call some passes which is benefit. */
 void 
@@ -54,7 +56,7 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
       (! strcmp (((struct opt_pass *)current_pass)->name, "inline")))
     {
       if (*(bool*)gcc_data)
-	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass inline\n");
+	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
     }
 
   return;
@@ -266,6 +268,20 @@ rap_optimization_clean ()
   return;
 }
 
+/* Build the check statement: 
+   if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
+     error () */
+static void
+build_cfi_check (gimple cs, rap_hash_value_type hash)
+{
+  tree decl; type;
+  gcc_assert (is_gimple_call (cs));
+  decl = gimple_call_fn (cs);
+  /* We must be indirect call */
+  gcc_assert (DECL_CODE (decl) == SSA_NAME);
+  type = cs->gimple_call.u.fntype;
+
+}
 
 // types_compatible_p
 /*
@@ -300,21 +316,34 @@ rap_fe_cfi_execute ()
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
       
-      //
       FOR_EACH_BB_FN (bb, func)
 	{
 	  gimple_stmt_iterator gsi;
 
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	    {
-	      gimple stmt = gsi_stmt (gsi);
-
+	      tree decl;
+	      gimple cs;
+	      rap_hash_value_type hash;
+	      cs = gsi_stmt (gsi);
+	      /* We are in forward cfi only cares about function call */
+	      if (! is_gimple_call (cs))
+		continue;
+	      /* direct call, nothing todo */
+	      if (gimple_call_fndecl (cs))
+	        ;
+	      /* indirect call */
+	      else
+	        {
+		  decl = gimple_call_fn (cs);
+		  hash = find_cfi_hash (decl);
+		  gcc_assert (hash);
+		  build_cfi_check (cs, hash);
+	        }
 	    }
 	}
 
       pop_cfun ();
-
-  
     }
 
   indirect_function_maps = pointer_map_create (); 
