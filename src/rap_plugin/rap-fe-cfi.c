@@ -270,16 +270,62 @@ rap_optimization_clean ()
   return;
 }
 
-#define MAKE_TARGET_HASH_TREE 1
 
-/* */
-static inline tree
-make_cfi_check_tree ()
+/* Search the [function type : hash value] table, if not have compatiable 
+   type match, create one and insert into the table. */
+static rap_hash_value_type
+find_or_create_cfi_hash_val (tree type)
 {
-  tree target_hash;  // hash get behind the function definitions.
-  tree source_hash;  // hash get before indirect calls.
-  tree var;
-  var = create_tmp_var (integer_type_node, "hl");
+  
+  gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
+
+}
+
+#define BUILD_SOURCE_HASH_TREE 1
+#define BUILD_TARGET_HASH_TREE 2
+
+/* Build cfi hash tree, target or source depend on the argument.
+   ??? should we reuse the tree node. */
+static tree
+build_cfi_hash_tree (tree func, int direct)
+{
+  //tree hash_tree, var;
+  rap_hash_value_type val;
+
+  gcc_assert (TREE_CODE (func_type) == FUNCTION_TYPE);
+  
+  // create source hash tree.
+  if (direct == BUILD_SOURCE_HASH_TREE)
+    {
+      val = find_or_create_cfi_hash_val (func_type);
+      return build_int_cst(integer_type_node, val);
+    }
+  else
+    {
+      tree target, func, func_type;
+      int target_offset;
+
+      gcc_assert (direct == BUILD_TARGET_HASH_TREE);
+      
+      target = create_tmp_var (integer_type_node, "hl_target");
+      target = make_ssa_name (var, NULL);
+
+      /* This code fragment of compute target function hash offset comes
+	 from Pax RAP. */
+      if (UNITS_PER_WORD == 8)
+	target_offset = 2 * sizeof(rap_hash_value_type);
+      else if (UNITS_PER_WORD == 4)
+	target_offset = sizeof(rap_hash_value_type);
+      else
+	gcc_unreachable();
+
+
+
+
+
+
+    }
+
 
 }
 
@@ -287,21 +333,32 @@ make_cfi_check_tree ()
 /* Build the check statement: 
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
      error () */
-static inline void
-build_cfi_check (gimple_stmt_iterator *gp, rap_hash_value_type hash)
+static void
+build_fe_cfi (gimple_stmt_iterator *gp)
 {
   gimple cs;
   //gimple_stmt_iterator gsi;
   tree decl; type;
+  tree target_hash;  // hash get behind the function definitions.
+  tree source_hash;  // hash get before indirect calls.
 
-  gcc_assert (is_gimple_call (cs));
   cs = gsi_stmt (*gp);
+  gcc_assert (is_gimple_call (cs));
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
   gcc_assert (TREE_CODE (decl) == SSA_NAME);
-  gcc_assert (! SSA_NAME_IS_DEFAULT_DEF (decl));
+  // 
   type = cs->gimple_call.u.fntype;
   gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == type);
+  /* build source hash tree */
+  source_hash = build_cfi_hash_tree (decl, BUILD_SOURCE_HASH_TREE);
+  /* build target hash tree */
+  target_hash = build_cfi_hash_tree (decl, BUILD_TARGET_HASH_TREE);
+
+  /* Build the condition expression and insert into the code block, because
+     the conditional import new branch, so we also need update the blocks */
+
+
 
 
 
@@ -349,7 +406,7 @@ rap_fe_cfi_execute ()
 	    {
 	      //tree decl;
 	      gimple cs;
-	      rap_hash_value_type hash;
+	      //tree hash;
 	      cs = gsi_stmt (gsi);
 	      /* We are in forward cfi only cares about function call */
 	      if (! is_gimple_call (cs))
@@ -358,9 +415,9 @@ rap_fe_cfi_execute ()
 	      if (NULL == gimple_call_fndecl (cs))
 	        {
 		  //decl = gimple_call_fn (cs);
-		  hash = find_cfi_hash (decl);
-		  gcc_assert (hash);
-		  build_cfi_check (cs, hash);
+		  //hash = find_cfi_hash_tree (decl);
+		  //gcc_assert (hash);
+		  build_fe_cfi (&gsi);
 	        }
 	    }
 	}
