@@ -287,12 +287,19 @@ find_or_create_cfi_hash_val (tree type)
 /* Build cfi hash tree, target or source depend on the argument.
    ??? should we reuse the tree node. */
 static tree
-build_cfi_hash_tree (tree func, int direct)
+build_cfi_hash_tree (gimple cs, int direct)
 {
   //tree hash_tree, var;
   rap_hash_value_type val;
+  tree decl, type; 
 
-  gcc_assert (TREE_CODE (func_type) == FUNCTION_TYPE);
+  gcc_assert(is_gimple_call (cs));
+  
+  decl = gimple_call_fn (cs);
+  type = TREE_TYPE (TREE_TYPE (decl));
+  // safe guard 
+  gcc_assert (TREE_CODE (decl) == SSA_NAME);
+  gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
   
   // create source hash tree.
   if (direct == BUILD_SOURCE_HASH_TREE)
@@ -337,8 +344,6 @@ static void
 build_fe_cfi (gimple_stmt_iterator *gp)
 {
   gimple cs;
-  //gimple_stmt_iterator gsi;
-  tree decl; type;
   tree target_hash;  // hash get behind the function definitions.
   tree source_hash;  // hash get before indirect calls.
 
@@ -347,13 +352,12 @@ build_fe_cfi (gimple_stmt_iterator *gp)
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
   gcc_assert (TREE_CODE (decl) == SSA_NAME);
-  // 
-  type = cs->gimple_call.u.fntype;
-  gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == type);
+  gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == cs->gimple_call.u.fntype);
+  
   /* build source hash tree */
-  source_hash = build_cfi_hash_tree (decl, BUILD_SOURCE_HASH_TREE);
+  source_hash = build_cfi_hash_tree (cs, BUILD_SOURCE_HASH_TREE);
   /* build target hash tree */
-  target_hash = build_cfi_hash_tree (decl, BUILD_TARGET_HASH_TREE);
+  target_hash = build_cfi_hash_tree (cs, BUILD_TARGET_HASH_TREE);
 
   /* Build the condition expression and insert into the code block, because
      the conditional import new branch, so we also need update the blocks */
