@@ -319,20 +319,31 @@ build_cfi_hash_tree (gimple cs, int direct)
 
       /* This code fragment of compute target function hash offset comes
 	 from Pax RAP. */
+      /* We need the forward offset. */
       if (UNITS_PER_WORD == 8)
-	target_offset = 2 * sizeof(rap_hash_value_type);
+        {
+	  target_offset = - 2 * sizeof(rap_hash_value_type);
+	  type = long_integer_type_node;
+	}
       else if (UNITS_PER_WORD == 4)
-	target_offset = sizeof(rap_hash_value_type);
+        {
+	  target_offset = - sizeof(rap_hash_value_type);
+	  type = integer_type_node;
+        }
       else
 	gcc_unreachable();
 
+      /* Build the tree for : ((rap_hash_value_type *)target_function - 1) 
+         This code is referenced from gcc source: gimplify_modify_expr_rhs() */
 
-
-
-
+      // integer_ptr_type_node
+      // func is the function pointer, ADDR_EXPR, pointer(function)
+      fold_build2 (MEM_REF, type, func,
+		   build_int_cst_wide (integer_ptr_type_node,
+				       TREE_INT_CST_LOW (target_offset),
+				       TREE_INT_CST_HIGH (target_offset)));
 
     }
-
 
 }
 
