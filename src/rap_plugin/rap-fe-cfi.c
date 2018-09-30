@@ -270,14 +270,42 @@ rap_optimization_clean ()
   return;
 }
 
+/* Type definition for hash value maps. */
+#define HL_CFI_MAP_CACHE_SIZE 3
+struct cfi_function_hash_maps_t
+{
+  struct pointer_map_t map;
+  // FIFO cache.
+  struct cfi_function_hash_pair_t
+  {
+    tree type;
+    rap_hash_value_type val;
+  } cfi_cache [HL_CFI_MAP_CACHE_SIZE];
+};
+
+/* Constains the fucntion type and hash value maps. */
+static struct pointer_map_t *cfi_function_hash_maps;
 
 /* Search the [function type : hash value] table, if not have compatiable 
    type match, create one and insert into the table. */
 static rap_hash_value_type
 find_or_create_cfi_hash_val (tree type)
 {
-  
+  int i;
   gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
+  //struct pointer_map_t *cfi_function_hash_maps;
+  if (! cfi_function_hash_maps.map)
+    cfi_function_hash_maps.map = pointer_map_create ();
+  
+  /* Search */
+  for (i = 0; i < HL_CFI_MAP_CACHE_SIZE; i++)
+    if (types_compatible_p (type, cfi_function_hash_maps.cfi_cache[i].type))
+      return cfi_function_hash_maps.cfi_cache.val;
+  
+
+  /* Update */
+
+
 
 }
 
@@ -291,12 +319,12 @@ build_cfi_hash_tree (gimple cs, int direct)
 {
   //tree hash_tree, var;
   rap_hash_value_type val;
-  tree decl, type; 
+  tree decl, func_type;
 
   gcc_assert(is_gimple_call (cs));
   
   decl = gimple_call_fn (cs);
-  type = TREE_TYPE (TREE_TYPE (decl));
+  func_type = TREE_TYPE (TREE_TYPE (decl));
   // safe guard 
   gcc_assert (TREE_CODE (decl) == SSA_NAME);
   gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
@@ -309,7 +337,7 @@ build_cfi_hash_tree (gimple cs, int direct)
     }
   else
     {
-      tree target, func, func_type;
+      tree target, off_type;
       int target_offset;
 
       gcc_assert (direct == BUILD_TARGET_HASH_TREE);
@@ -323,12 +351,12 @@ build_cfi_hash_tree (gimple cs, int direct)
       if (UNITS_PER_WORD == 8)
         {
 	  target_offset = - 2 * sizeof(rap_hash_value_type);
-	  type = long_integer_type_node;
+	  off_type = long_integer_type_node;
 	}
       else if (UNITS_PER_WORD == 4)
         {
 	  target_offset = - sizeof(rap_hash_value_type);
-	  type = integer_type_node;
+	  off_type = integer_type_node;
         }
       else
 	gcc_unreachable();
@@ -338,7 +366,10 @@ build_cfi_hash_tree (gimple cs, int direct)
 
       // integer_ptr_type_node
       // func is the function pointer, ADDR_EXPR, pointer(function)
-      fold_build2 (MEM_REF, type, func,
+      gcc_assert (FUNCTION_POINTER_TYPE_P ( TREE_TYPE (decl)));
+      // type is the result type of cast.
+      fold_build2 (MEM_REF, off_type, decl,
+		   // This is a pointer type tree reprensent the offset.
 		   build_int_cst_wide (integer_ptr_type_node,
 				       TREE_INT_CST_LOW (target_offset),
 				       TREE_INT_CST_HIGH (target_offset)));
@@ -372,11 +403,6 @@ build_fe_cfi (gimple_stmt_iterator *gp)
 
   /* Build the condition expression and insert into the code block, because
      the conditional import new branch, so we also need update the blocks */
-
-
-
-
-
 
 }
 
