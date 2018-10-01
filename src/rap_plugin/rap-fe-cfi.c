@@ -271,20 +271,48 @@ rap_optimization_clean ()
 }
 
 /* Type definition for hash value maps. */
-#define HL_CFI_MAP_CACHE_SIZE 3
 struct cfi_function_hash_maps_t
 {
-  struct pointer_map_t map;
+  struct pointer_map_t *map;
+  /* Implementate a circle list. */
+  unsigned total;
+#if 0
+#define HL_CFI_MAP_CACHE_SIZE 3
   // FIFO cache.
   struct cfi_function_hash_pair_t
   {
     tree type;
     rap_hash_value_type val;
   } cfi_cache [HL_CFI_MAP_CACHE_SIZE];
+#endif
 };
 
 /* Constains the fucntion type and hash value maps. */
-static struct pointer_map_t *cfi_function_hash_maps;
+static struct cfi_function_hash_maps_t cfi_db;
+
+/* Temp type, used for access cfi_db. */
+struct cfi_key_value_t
+ {
+   tree type;
+   rap_hash_value_type val;
+ };
+
+/* Hook fed to pointer_map_traverse, type compatiablity test. 
+   If find return TRUE, otherwise FALSE. */
+bool
+pointer_map_access (const void *key, void **val, void *type)
+{
+  struct cfi_key_value_t contain;
+
+  contain = (cfi_key_value_t *)type;
+  if (types_compatible_p ((tree)key, contain.type))
+  {
+    contain.val = (rap_hash_value_type)**val;
+    return true;
+  }
+
+  return false;
+}
 
 /* Search the [function type : hash value] table, if not have compatiable 
    type match, create one and insert into the table. */
@@ -292,21 +320,35 @@ static rap_hash_value_type
 find_or_create_cfi_hash_val (tree type)
 {
   int i;
+  rap_hash_value_type val;
+  void **val_address;
+
+  struct key_value
+   {
+     tree type;
+     rap_hash_value_type val;
+   } contain;
+
   gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
   //struct pointer_map_t *cfi_function_hash_maps;
-  if (! cfi_function_hash_maps.map)
-    cfi_function_hash_maps.map = pointer_map_create ();
+  if (! cfi_db.map)
+    cfi_db.map = pointer_map_create ();
   
   /* Search */
-  for (i = 0; i < HL_CFI_MAP_CACHE_SIZE; i++)
-    if (types_compatible_p (type, cfi_function_hash_maps.cfi_cache[i].type))
-      return cfi_function_hash_maps.cfi_cache.val;
-  
+  contain = {type, };
+  if (0 == cfi_db.total)
+    goto create;
+  if (pointer_set_traverse(cfi_db.map, pointer_map_access, (void *)&contain))
+    return contain.val;
 
-  /* Update */
-
-
-
+  /* Fall through. update db. */
+create:
+  val = (rap_hash_value_type)
+	((rap_hash_function_type (type, imprecise_rap_hash_flags)).hash);
+  val_address = pointer_map_insert (cfi_db.map, (void *)type);
+  *val_address = (void *)val;
+  ++cfi_db.total;
+  return val;
 }
 
 #define BUILD_SOURCE_HASH_TREE 1
