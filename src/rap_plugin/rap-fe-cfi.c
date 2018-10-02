@@ -356,6 +356,9 @@ create:
 
 /* Build cfi hash tree, target or source depend on the argument.
    ??? should we reuse the tree node. */
+// set_dom_info_availability (enum cdi_direction dir, enum dom_state new_state)
+//free_dominance_info (enum cdi_direction dir)
+
 static tree
 build_cfi_hash_tree (gimple cs, int direct)
 {
@@ -504,6 +507,10 @@ rap_fe_cfi_execute ()
 	        }
 	    }
 	}
+
+      // Force the dominate info of current function recompute.
+      free_dominance_info (CDI_DOMINATORS);
+      free_dominance_info (CDI_POST_DOMINATORS);
 
       pop_cfun ();
     }
