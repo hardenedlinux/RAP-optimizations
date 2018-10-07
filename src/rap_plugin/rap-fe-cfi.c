@@ -423,6 +423,37 @@ build_cfi_hash_tree (gimple cs, int direct)
 
 }
 
+/* Insert branch and create two blcok contain original function call and our
+   catch code. 
+     stmt1;
+     call fptr;
+
+     -- change to
+
+     stmt1;
+     ne_expr;
+     goto catch_label;
+     else
+     goto call_labale;
+   call_label:
+     call fptr;
+   catch_label:
+     cfi_catch();
+
+   And also need complete the control flow graph. */
+static void
+insert_cond_and_build_cfg (gimple_stmt_iterator *gp, tree s, tree t)
+{
+  gimple cs;
+  gimple_stmt_iterator gsi;
+
+  gsi = *gp;
+  cs = gsi_stmt (gsi);
+  gcc_assert (is_gimple_call (cs));
+
+  return;
+}
+
 
 /* Build the check statement: 
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
@@ -434,7 +465,7 @@ build_fe_cfi (gimple_stmt_iterator *gp)
   tree target_hash;  // hash get behind the function definitions.
   tree source_hash;  // hash get before indirect calls.
 
-  cs = gsi_stmt (*gp);
+  cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
@@ -448,7 +479,9 @@ build_fe_cfi (gimple_stmt_iterator *gp)
 
   /* Build the condition expression and insert into the code block, because
      the conditional import new branch, so we also need update the blocks */
+  insert_cond_and_build_cfg (gp, source_hash, target_hash);
 
+  return;
 }
 
 // types_compatible_p
