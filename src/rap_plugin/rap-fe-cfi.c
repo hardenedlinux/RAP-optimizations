@@ -360,7 +360,7 @@ create:
 //free_dominance_info (enum cdi_direction dir)
 
 static tree
-build_cfi_hash_tree (gimple cs, int direct)
+build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 {
   //tree hash_tree, var;
   rap_hash_value_type val;
@@ -382,13 +382,14 @@ build_cfi_hash_tree (gimple cs, int direct)
     }
   else
     {
-      tree target, off_type;
+      //tree off_type;
       int target_offset;
 
       gcc_assert (direct == BUILD_TARGET_HASH_TREE);
+      gcc_assert (target_off_type_p);
       
-      target = create_tmp_var (integer_type_node, "hl_target");
-      target = make_ssa_name (var, NULL);
+      //target = create_tmp_var (integer_type_node, "hl_target");
+      //target = make_ssa_name (var, NULL);
 
       /* This code fragment of compute target function hash offset comes
 	 from Pax RAP. */
@@ -396,12 +397,12 @@ build_cfi_hash_tree (gimple cs, int direct)
       if (UNITS_PER_WORD == 8)
         {
 	  target_offset = - 2 * sizeof(rap_hash_value_type);
-	  off_type = long_integer_type_node;
+	  *target_off_type_p = long_integer_type_node;
 	}
       else if (UNITS_PER_WORD == 4)
         {
 	  target_offset = - sizeof(rap_hash_value_type);
-	  off_type = integer_type_node;
+	  *target_off_type_p = integer_type_node;
         }
       else
 	gcc_unreachable();
@@ -413,43 +414,72 @@ build_cfi_hash_tree (gimple cs, int direct)
       // func is the function pointer, ADDR_EXPR, pointer(function)
       gcc_assert (FUNCTION_POINTER_TYPE_P ( TREE_TYPE (decl)));
       // type is the result type of cast.
-      fold_build2 (MEM_REF, off_type, decl,
+      return fold_build2 (MEM_REF, *target_off_type_p, decl,
 		   // This is a pointer type tree reprensent the offset.
 		   build_int_cst_wide (integer_ptr_type_node,
 				       TREE_INT_CST_LOW (target_offset),
 				       TREE_INT_CST_HIGH (target_offset)));
 
     }
-
+  gcc_assert (0);
 }
 
 /* Insert branch and create two blcok contain original function call and our
-   catch code. 
+   catch code. And also need complete the control flow graph.
+     +-------
      stmt1;
      call fptr;
-
-     -- change to
-
+     +-------
+     change to =>
+     +-------
      stmt1;
-     ne_expr;
-     goto catch_label;
-     else
-     goto call_labale;
-   call_label:
-     call fptr;
+     lhs = t_;
+     ne_expr (lhs, s_, catch_label, call_label);
    catch_label:
      cfi_catch();
+   call_label:
+     call fptr;
+     +--------
 
-   And also need complete the control flow graph. */
+   The value of argument s_ is a const integer tree, 
+   t_ is a MEM-REF, may need insert temp varibale as lhs get the value. */
 static void
-insert_cond_and_build_cfg (gimple_stmt_iterator *gp, tree s, tree t)
+insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp, 
+		               tree s_, 
+			       tree t_, 
+			       tree t_t)
 {
-  gimple cs;
-  gimple_stmt_iterator gsi;
+  gimple cs, g;
+  gimple_stmt_iterator gsi, gcmp, gcatch, gcall;
+  tree lhs, label;
 
   gsi = *gp;
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
+
+  // lhs = t_
+  lhs = create_tmp_var (t_t, "hl_cfi_hash");
+  //target = make_ssa_name (var, NULL);
+  g = gimple_build_assign (lhs, t_);
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  // if (lhs != s_) goto cfi_catch else goto call
+  g = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  // catch_label :
+  label = create_artificial_label (gimple_location (cs));
+  g = gimple_build_label (label);
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  // catch_cfi();
+  //g = gimple_build_call ();
+  //gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  // call_label:
+  label = create_artificial_label (gimple_location (cs));
+  g = gimple_build_label (label);
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  // current statement should be original call.
+  gcc_assert (is_gimple_call (gsi_stmt (gsi)));
+  /* Now we need complete the cfg. */
+
 
   return;
 }
@@ -457,13 +487,14 @@ insert_cond_and_build_cfg (gimple_stmt_iterator *gp, tree s, tree t)
 
 /* Build the check statement: 
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
-     error () */
+     catch () */
 static void
 build_fe_cfi (gimple_stmt_iterator *gp)
 {
   gimple cs;
-  tree target_hash;  // hash get behind the function definitions.
-  tree source_hash;  // hash get before indirect calls.
+  tree th;  // hash get behind the function definitions.
+  tree sh;  // hash get before indirect calls.
+  tree target_off_type;
 
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
@@ -473,13 +504,13 @@ build_fe_cfi (gimple_stmt_iterator *gp)
   gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == cs->gimple_call.u.fntype);
   
   /* build source hash tree */
-  source_hash = build_cfi_hash_tree (cs, BUILD_SOURCE_HASH_TREE);
+  sh = build_cfi_hash_tree (cs, BUILD_SOURCE_HASH_TREE, NULL);
   /* build target hash tree */
-  target_hash = build_cfi_hash_tree (cs, BUILD_TARGET_HASH_TREE);
+  th = build_cfi_hash_tree (cs, BUILD_TARGET_HASH_TREE, &target_off_type);
 
   /* Build the condition expression and insert into the code block, because
      the conditional import new branch, so we also need update the blocks */
-  insert_cond_and_build_cfg (gp, source_hash, target_hash);
+  insert_cond_and_build_ssa_cfg (gp, sh, th, target_off_type);
 
   return;
 }
