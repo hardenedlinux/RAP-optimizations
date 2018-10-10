@@ -424,6 +424,20 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
   gcc_assert (0);
 }
 
+// linux kernel function.
+extern void panic (const char *fmt, ...);
+
+/* Help function called when the fe-cfi violate catched. */
+void hl_fe_cfi_catch_tree ()
+{
+  tree catch;
+  // TODO, change this to a gcc tree structure;
+  panic ("[!] HardenedLinux fe-cfi violate catched.");
+
+  return catch;
+}
+
+
 /* Insert branch and create two blcok contain original function call and our
    catch code. And also need complete the control flow graph.
      +-------
@@ -434,8 +448,10 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
      +-------
      stmt1;
      lhs = t_;
-     ne_expr (lhs, s_, catch_label, call_label);
-   catch_label:
+     ne_expr (lhs, s_);
+     // true
+     goto call_label;
+     // FALLTHRU
      cfi_catch();
    call_label:
      call fptr;
@@ -450,35 +466,48 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 			       tree t_t)
 {
   gimple cs, g;
-  gimple_stmt_iterator gsi, gcmp, gcatch, gcall;
+  gimple_stmt_iterator gsi;
+  gimple branch;  // test & branch gimple we insert.
+  gimple catch;   // catch function we insert.
+  gimple call;    // call label gimple we insert.
   tree lhs, label;
 
   gsi = *gp;
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
 
-  // lhs = t_
+  /* Insert gimpls. */
+  /* lhs = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   //target = make_ssa_name (var, NULL);
   g = gimple_build_assign (lhs, t_);
   gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   // if (lhs != s_) goto cfi_catch else goto call
-  g = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
-  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
-  // catch_label :
+  branch = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  gsi_insert_before (&gsi, branch, GSI_SAME_STMT);
+  
+  /* catch function */
+  //hl_fe_cfi_catch ();
+  catch = gimple_build_call (hl_fe_cfi_catch_tree (), 0);
+  gsi_insert_before (&gsi, catch, GSI_SAME_STMT);
+  
+  /* call_label: */
   label = create_artificial_label (gimple_location (cs));
-  g = gimple_build_label (label);
-  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
-  // catch_cfi();
-  //g = gimple_build_call ();
-  //gsi_insert_before (&gsi, g, GSI_SAME_STMT);
-  // call_label:
-  label = create_artificial_label (gimple_location (cs));
-  g = gimple_build_label (label);
-  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  call = gimple_build_label (label);
+  gsi_insert_before (&gsi, call, GSI_SAME_STMT);
   // current statement should be original call.
   gcc_assert (is_gimple_call (gsi_stmt (gsi)));
-  /* Now we need complete the cfg. */
+  
+  // guard test.
+  GIMPLE_CHECK (branch, GIMPLE_COND);
+  GIMPLE_CHECK (catch, GIMPLE_LABEL);
+  GIMPLE_CHECK (call, GIMPLE_LABEL);
+
+  /* Make the blocks. */
+
+
+
+  /* Build the edges. */
 
 
   return;
