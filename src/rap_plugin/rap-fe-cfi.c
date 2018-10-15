@@ -441,6 +441,12 @@ void hl_fe_cfi_catch_tree ()
   return catch;
 }
 
+/* Build the blocks and complete the control flow info.  */
+static void
+cfi_make_blocks_and_edgs ()
+{
+
+}
 
 /* Insert branch and create two blcok contain original function call and our
    catch code. And also need complete the control flow graph.
@@ -471,6 +477,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 {
   gimple cs, g;
   gimple_stmt_iterator first, gsi;
+  gimple assign;    // test gimple we insert.
   gimple test;    // test gimple we insert.
   gimple catch;   // catch function we insert.
   gimple branch;  // goto gimple we insert.
@@ -493,9 +500,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* lhs = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   //target = make_ssa_name (var, NULL);
-  g = gimple_build_assign (lhs, t_);
-  gimple_set_block (g, gimple_block (cs));
-  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+  assign = gimple_build_assign (lhs, t_);
+  gimple_set_block (assign, gimple_block (cs));
+  gsi_insert_before (&gsi, assign, GSI_SAME_STMT);
   // if (lhs != s_) goto cfi_catch else goto call
   test = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
   gimple_set_block (test, gimple_block (cs));
@@ -525,20 +532,36 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   GIMPLE_CHECK (call, GIMPLE_LABEL);
   gcc_assert (cfg_hooks && ! strcmp (cfg_hooks->name, "gimple"));
 
-  /* Make the blocks. */
+  /* We can sure we have this code fragment(write as gimple pointers):
+     # old code
+     assign
+     branch
+     catch
+     call
+     # old code  */
+  /* Make the blocks & edges. */
   stmt_starts_bb_p ();
   stmt_ends_bb_p ();
+  {
+    basic_block bb = ENTRY_BLOCK_PTR;
+    //
+    g = gsi_for_stmt (branch);
+    gsi_split_seq_before (&g, &branch);
+    bb = create_basic_block (branch, NULL, bb);
+    gimple_set_bb (assign, bb);
+    gimple_set_bb (branch, bb);
 
-  /* Split the gimple sequence.  */
-  g = gsi_for_stmt (branch);
-  gsi_split_seq_before (g, branch);
-  g = gsi_for_stmt (catch);
-  gsi_split_seq_before (g, catch);
-  g = gsi_for_stmt (call);
-  gsi_split_seq_before (g, call);
-
-  /* Build the edges. */
-
+    //
+    g = gsi_for_stmt (catch);
+    gsi_split_seq_before (&g, &catch);
+    bb = create_basic_block (catch, NULL, bb);
+    gimple_set_bb (catch, bb);
+    //
+    g = gsi_for_stmt (call);
+    gsi_split_seq_before (&g, &call);
+    bb = create_basic_block (call, NULL, bb);
+    gimple_set_bb (call, bb);
+  }
 
   return;
 }
