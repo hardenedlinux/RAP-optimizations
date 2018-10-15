@@ -47,6 +47,10 @@ static struct pointer_set_t *pointer_types;
 static bool will_call_ipa_pta;
 /* For compatiable with the original RAP */
 typedef rap_hash_t.hash rap_hash_value_type;
+/* Used for disable dom info, because dom info is function based, 
+   when cfun changed set this falg.  */
+static bool is_cfi_chaned_cfun;
+static bool is_cfi_need_clean_dom_info;
 
 /* Test GCC will call some passes which is benefit. */
 void 
@@ -466,9 +470,10 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 			       tree t_t)
 {
   gimple cs, g;
-  gimple_stmt_iterator gsi;
-  gimple branch;  // test & branch gimple we insert.
+  gimple_stmt_iterator first, gsi;
+  gimple test;    // test gimple we insert.
   gimple catch;   // catch function we insert.
+  gimple branch;  // goto gimple we insert.
   gimple call;    // call label gimple we insert.
   tree lhs, label;
 
@@ -476,24 +481,40 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
 
+  /* First of all, disable the dom info, for effecicent and simplity */
+  if (is_cfi_need_clean_dom_info && ! is_cfi_chaned_cfun)
+    {
+      set_dom_info_availability (CDI_DOMINATORS, DOM_NONE);
+      set_dom_info_availability (CDI_POST_DOMINATORS, DOM_NONE);
+      is_cfi_need_clean_dom_info = false;
+    }
+
   /* Insert gimpls. */
   /* lhs = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   //target = make_ssa_name (var, NULL);
   g = gimple_build_assign (lhs, t_);
+  gimple_set_block (g, gimple_block (cs));
   gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   // if (lhs != s_) goto cfi_catch else goto call
-  branch = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  test = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  gimple_set_block (test, gimple_block (cs));
+  gsi_insert_before (&gsi, test, GSI_SAME_STMT);
+  // goto call_label
+  branch = gimple_build_goto (call);
+  gimple_set_block (branch, gimple_block (cs));
   gsi_insert_before (&gsi, branch, GSI_SAME_STMT);
   
   /* catch function */
   //hl_fe_cfi_catch ();
   catch = gimple_build_call (hl_fe_cfi_catch_tree (), 0);
+  gimple_set_block (catch, gimple_block (cs));
   gsi_insert_before (&gsi, catch, GSI_SAME_STMT);
   
   /* call_label: */
   label = create_artificial_label (gimple_location (cs));
   call = gimple_build_label (label);
+  gimple_set_block (call, gimple_block (cs));
   gsi_insert_before (&gsi, call, GSI_SAME_STMT);
   // current statement should be original call.
   gcc_assert (is_gimple_call (gsi_stmt (gsi)));
@@ -502,10 +523,19 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   GIMPLE_CHECK (branch, GIMPLE_COND);
   GIMPLE_CHECK (catch, GIMPLE_LABEL);
   GIMPLE_CHECK (call, GIMPLE_LABEL);
+  gcc_assert (cfg_hooks && ! strcmp (cfg_hooks->name, "gimple"));
 
   /* Make the blocks. */
+  stmt_starts_bb_p ();
+  stmt_ends_bb_p ();
 
-
+  /* Split the gimple sequence.  */
+  g = gsi_for_stmt (branch);
+  gsi_split_seq_before (g, branch);
+  g = gsi_for_stmt (catch);
+  gsi_split_seq_before (g, catch);
+  g = gsi_for_stmt (call);
+  gsi_split_seq_before (g, call);
 
   /* Build the edges. */
 
@@ -576,10 +606,12 @@ rap_fe_cfi_execute ()
 
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
+      is_cfi_need_clean_dom_info = true;
       
       FOR_EACH_BB_FN (bb, func)
 	{
 	  gimple_stmt_iterator gsi;
+	  is_cfi_chaned_cfun = false;
 
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	    {
@@ -596,15 +628,15 @@ rap_fe_cfi_execute ()
 		  //decl = gimple_call_fn (cs);
 		  //hash = find_cfi_hash_tree (decl);
 		  //gcc_assert (hash);
+		  is_cfi_need_clean_dom_info = true;
 		  build_fe_cfi (&gsi);
 	        }
 	    }
 	}
 
       // Force the dominate info of current function recompute.
-      free_dominance_info (CDI_DOMINATORS);
-      free_dominance_info (CDI_POST_DOMINATORS);
-
+      //free_dominance_info (CDI_DOMINATORS);
+      //free_dominance_info (CDI_POST_DOMINATORS);
       pop_cfun ();
     }
   //indirect_function_maps = pointer_map_create (); 
