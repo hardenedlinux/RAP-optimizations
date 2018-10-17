@@ -476,8 +476,8 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 {
   gimple cs, g;
   gimple_stmt_iterator first, gsi;
-  gimple assign;    // test gimple we insert.
-  gimple test;    // test gimple we insert.
+  gimple assign;    // assign gimple we insert.
+  gimple cond;    // test gimple we insert.
   gimple catch;   // catch function we insert.
   gimple branch;  // goto gimple we insert.
   gimple call;    // call label gimple we insert.
@@ -503,9 +503,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   gimple_set_block (assign, gimple_block (cs));
   gsi_insert_before (&gsi, assign, GSI_SAME_STMT);
   // if (lhs != s_) goto cfi_catch else goto call
-  test = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
-  gimple_set_block (test, gimple_block (cs));
-  gsi_insert_before (&gsi, test, GSI_SAME_STMT);
+  cond = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  gimple_set_block (cond, gimple_block (cs));
+  gsi_insert_before (&gsi, cond, GSI_SAME_STMT);
   // goto call_label
   //branch = gimple_build_goto (call);
   //gimple_set_block (branch, gimple_block (cs));
@@ -535,7 +535,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* We can sure we have this code fragment(write as gimple pointers):
      # old code
      assign
-     test
+     cond
      <new bb> #true
      catch
      <old bb> #false
@@ -545,24 +545,28 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   stmt_starts_bb_p ();
   stmt_ends_bb_p ();
   {
-    basic_block bb = ENTRY_BLOCK_PTR;
+    basic_block bb_cond;
+    basic_block bb_catch;
+    basic_block bb_call;
+    edge edge_false;
+    edge edge_true;
     //
-    g = gsi_for_stmt (test);
-    gsi_split_seq_before (&g, &test);
-    bb = create_basic_block (test, NULL, bb);
-    gimple_set_bb (assign, bb);
-    gimple_set_bb (test, bb);
+    g = gsi_for_stmt (cond);
+    gsi_split_seq_before (&g, &cond);
+    bb_cond = create_basic_block (cond, NULL, bb);
+    gimple_set_bb (assign, bb_cond);
+    gimple_set_bb (cond, bb_cond);
 
     // EDGE_TRUE_VALUE
     g = gsi_for_stmt (catch);
     gsi_split_seq_before (&g, &catch);
-    bb = create_basic_block (catch, NULL, bb);
-    gimple_set_bb (catch, bb);
-    //
-    g = gsi_for_stmt (call);
-    gsi_split_seq_before (&g, &call);
-    bb = create_basic_block (call, NULL, bb);
-    gimple_set_bb (call, bb);
+    bb_catch = create_basic_block (catch, NULL, bb_catch);
+    gimple_set_bb (catch, bb_catch);
+    // EDGE_FALSE_VALUE
+    /* Split the block between the catch and original call.  */
+    bb_call = gimple_bb (call);
+    edge_false = split_block (bb_call, catch);
+    GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
   }
 
   return;
