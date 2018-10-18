@@ -429,23 +429,36 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 }
 
 // linux kernel function.
-extern void panic (const char *fmt, ...);
+//extern void panic (const char *fmt, ...);
 
 /* Help function called when the fe-cfi violate catched. */
-void hl_fe_cfi_catch_tree ()
+static basic_block
+cfi_catch_and_trap_bb (location_t loc, basic_block *after)
 {
-  tree catch;
-  // TODO, change this to a gcc tree structure;
-  panic ("[!] HardenedLinux fe-cfi violate catched.");
+  tree report;
+  tree trap;
+  gimple_seq seq;
+  gimple g;
+  basic_block bb;
+  gimple_stmt_iterator gsi;
 
-  return catch;
-}
+  /* Build the report & trap tree. */
 
-/* Build the blocks and complete the control flow info.  */
-static void
-cfi_make_blocks_and_edgs ()
-{
+  /* gimple sequence for bb.  */
+  seq = g = gimple_build_call (report, loc);
+  /* ssa concerns.  */
+  update_modified_stmt (g);
+  bb = create_basic_block (seq, NULL, after);
+  gimple_set_block (g, bb);
 
+  /* Initialize iterator.  */
+  gsi = gsi_start (seq);
+  g = gimple_build_call (trap, loc);
+  gsi_insert_after (&gsi, g, GSI_SAME_STMT);
+  gimple_set_block (g, bb);
+  
+  //panic ("[!] HardenedLinux fe-cfi violate catched.");
+  return bb;
 }
 
 /* Insert branch and create two blcok contain original function call and our
@@ -476,12 +489,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 {
   gimple cs, g;
   gimple_stmt_iterator first, gsi;
-  gimple assign;    // assign gimple we insert.
   gimple cond;    // test gimple we insert.
-  gimple catch;   // catch function we insert.
-  gimple branch;  // goto gimple we insert.
   gimple call;    // call label gimple we insert.
-  tree lhs, label;
+  tree lhs;
 
   gsi = *gp;
   cs = gsi_stmt (gsi);
@@ -495,41 +505,25 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       is_cfi_need_clean_dom_info = false;
     }
 
-  /* Insert gimpls. */
+  /* Insert gimples. */
   /* lhs = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   //target = make_ssa_name (var, NULL);
-  assign = gimple_build_assign (lhs, t_);
-  gimple_set_block (assign, gimple_block (cs));
-  gsi_insert_before (&gsi, assign, GSI_SAME_STMT);
+  g = gimple_build_assign (lhs, t_);
+  gimple_set_block (g, gimple_block (cs));
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   // if (lhs != s_) goto cfi_catch else goto call
-  cond = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
-  gimple_set_block (cond, gimple_block (cs));
-  gsi_insert_before (&gsi, cond, GSI_SAME_STMT);
-  // goto call_label
-  //branch = gimple_build_goto (call);
-  //gimple_set_block (branch, gimple_block (cs));
-  //gsi_insert_before (&gsi, branch, GSI_SAME_STMT);
+  cond = g = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  gimple_set_block (g, gimple_block (cs));
+  gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   
-  /* catch function */
-  //hl_fe_cfi_catch ();
-  catch = gimple_build_call (hl_fe_cfi_catch_tree (), 0);
-  gimple_set_block (catch, gimple_block (cs));
-  gsi_insert_before (&gsi, catch, GSI_SAME_STMT);
-  
-  /* call_label: */
-  //label = create_artificial_label (gimple_location (cs));
-  //call = gimple_build_label (label);
-  //gimple_set_block (call, gimple_block (cs));
-  //gsi_insert_before (&gsi, call, GSI_SAME_STMT);
   call = cs;
   // current statement should be original call.
   gcc_assert (is_gimple_call (gsi_stmt (gsi)));
   
   // guard test.
-  GIMPLE_CHECK (branch, GIMPLE_COND);
-  GIMPLE_CHECK (catch, GIMPLE_LABEL);
-  GIMPLE_CHECK (call, GIMPLE_LABEL);
+  GIMPLE_CHECK (cond, GIMPLE_COND);
+  GIMPLE_CHECK (call, GIMPLE_CALL);
   gcc_assert (cfg_hooks && ! strcmp (cfg_hooks->name, "gimple"));
 
   /* We can sure we have this code fragment(write as gimple pointers):
@@ -545,27 +539,27 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   stmt_starts_bb_p ();
   stmt_ends_bb_p ();
   {
+    basic_block bb_old;
     basic_block bb_cond;
     basic_block bb_catch;
     basic_block bb_call;
     edge edge_false;
     edge edge_true;
     //
-    g = gsi_for_stmt (cond);
-    gsi_split_seq_before (&g, &cond);
-    bb_cond = create_basic_block (cond, NULL, bb);
-    gimple_set_bb (assign, bb_cond);
-    gimple_set_bb (cond, bb_cond);
+
+    /* Get the original bb, Thers is only one. 
+       For now the basic block is clean.  */
+    bb_old = gimple_bb (cs);
+    edge_false = split_block (bb_old, cs);
+    gcc_assert (edge_false->flags == EDGE_FALLTHRU);
+    edge_false->flags = EDGE_FALSE_VALUE;
+
+    /* Create block after the block contain original call. 
+       We can have a toplogical for the blocks created and old. */
+    // EDGE_TRUE_VALUE
+    bb_catch = cfi_catch_and_trap_bb (gimple_location (cs), edge_false->dest);
 
     // EDGE_TRUE_VALUE
-    g = gsi_for_stmt (catch);
-    gsi_split_seq_before (&g, &catch);
-    bb_catch = create_basic_block (catch, NULL, bb_catch);
-    gimple_set_bb (catch, bb_catch);
-    // EDGE_FALSE_VALUE
-    /* Split the block between the catch and original call.  */
-    bb_call = gimple_bb (call);
-    edge_false = split_block (bb_call, catch);
     GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
   }
 
