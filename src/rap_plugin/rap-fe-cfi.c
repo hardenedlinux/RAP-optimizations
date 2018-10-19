@@ -435,15 +435,21 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 static basic_block
 cfi_catch_and_trap_bb (location_t loc, basic_block *after)
 {
-  tree report;
   tree trap;
-  gimple_seq seq;
   gimple g;
+  gimple_seq seq;
+#if 0
+  tree report;
+  tree param;
+  gimple_seq seq;
   basic_block bb;
   gimple_stmt_iterator gsi;
 
   /* Build the report & trap tree. */
-
+  const char *str = "[!] HardenedLinux cfi violate catched.";
+  int len = strlen (str);
+  param = build_string_literal (len, str);
+  
   /* gimple sequence for bb.  */
   seq = g = gimple_build_call (report, loc);
   /* ssa concerns.  */
@@ -452,12 +458,15 @@ cfi_catch_and_trap_bb (location_t loc, basic_block *after)
   gimple_set_block (g, bb);
 
   /* Initialize iterator.  */
-  gsi = gsi_start (seq);
-  g = gimple_build_call (trap, loc);
-  gsi_insert_after (&gsi, g, GSI_SAME_STMT);
+  //gsi = gsi_start (seq);
+#endif  
+  trap = builtin_decl_explicit (BUILT_IN_TRAP);
+  seq = g = gimple_build_call (trap, loc);
+  bb = create_basic_block (seq, NULL, after);
+  update_modified_stmt (g);
+  //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
   gimple_set_block (g, bb);
   
-  //panic ("[!] HardenedLinux fe-cfi violate catched.");
   return bb;
 }
 
@@ -488,9 +497,12 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 			       tree t_t)
 {
   gimple cs, g;
-  gimple_stmt_iterator first, gsi;
+  gimple_stmt_iterator gsi;
   gimple cond;    // test gimple we insert.
   gimple call;    // call label gimple we insert.
+  basic_block old_bb;
+  basic_block catch_bb;
+  edge edge_false;
   tree lhs;
 
   gsi = *gp;
@@ -536,32 +548,29 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
      call
      # old code  */
   /* Make the blocks & edges. */
-  stmt_starts_bb_p ();
-  stmt_ends_bb_p ();
-  {
-    basic_block bb_old;
-    basic_block bb_cond;
-    basic_block bb_catch;
-    basic_block bb_call;
-    edge edge_false;
-    edge edge_true;
-    //
+  //stmt_starts_bb_p ();
+  //stmt_ends_bb_p ();
+  /* Get the original bb, Thers is only one. 
+     For now the basic block is clean.  */
+  old_bb = gimple_bb (cs);
+  edge_false = split_block (old_bb, cs);
+  gcc_assert (edge_false->flags == EDGE_FALLTHRU);
+  edge_false->flags = EDGE_FALSE_VALUE;
+  GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
 
-    /* Get the original bb, Thers is only one. 
-       For now the basic block is clean.  */
-    bb_old = gimple_bb (cs);
-    edge_false = split_block (bb_old, cs);
-    gcc_assert (edge_false->flags == EDGE_FALLTHRU);
-    edge_false->flags = EDGE_FALSE_VALUE;
-
-    /* Create block after the block contain original call. 
-       We can have a toplogical for the blocks created and old. */
-    // EDGE_TRUE_VALUE
-    bb_catch = cfi_catch_and_trap_bb (gimple_location (cs), edge_false->dest);
-
-    // EDGE_TRUE_VALUE
-    GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
-  }
+  /* Create block after the block contain original call. 
+     We can have a toplogical for the blocks created and old. */
+  // EDGE_TRUE_VALUE
+  catch_bb = cfi_catch_and_trap_bb (gimple_location (cs), edge_false->dest);
+  /* catch_bb must dominated by old the bb contains the indirect call 
+     what we insert cfi guard.  */
+  if (current_loops != NULL)
+    {
+      add_bb_to_loop (catch_bb, old_bb->loop_father);
+      if (old_bb->loop_father->latch == old_bb)
+        old_bb->loop_father->latch = catch_bb;
+    }
+  make_single_succ_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
 
   return;
 }
