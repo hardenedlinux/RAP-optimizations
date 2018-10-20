@@ -582,7 +582,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
      catch () */
 static void
-build_fe_cfi (gimple_stmt_iterator *gp)
+build_cfi (gimple_stmt_iterator *gp)
 {
   gimple cs;
   tree th;  // hash get behind the function definitions.
@@ -608,21 +608,16 @@ build_fe_cfi (gimple_stmt_iterator *gp)
   return;
 }
 
-// types_compatible_p
 /*
-
 cgraph_local_node_p 
-
 types_compatible_p
 flag_ltrans
 flag_lto
-
-
 */
 
 /* This new pass will be added after the GCC pass ipa "pta". */
 static unsigned int
-rap_fe_cfi_execute ()
+rap_hl_cfi_execute ()
 {
   struct cgraph_node *node;
   //if (! flag_ltrans)
@@ -663,7 +658,7 @@ rap_fe_cfi_execute ()
 		  //hash = find_cfi_hash_tree (decl);
 		  //gcc_assert (hash);
 		  is_cfi_need_clean_dom_info = true;
-		  build_fe_cfi (&gsi);
+		  build_cfi (&gsi);
 	        }
 	    }
 	}
@@ -675,7 +670,7 @@ rap_fe_cfi_execute ()
 }
 
 /* Genetate the pass structure */
-#define PASS_NAME rap_fe_cfi
+#define PASS_NAME rap_hl_cfi
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
