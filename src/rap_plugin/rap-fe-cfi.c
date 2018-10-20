@@ -462,6 +462,9 @@ cfi_catch_and_trap_bb (location_t loc, basic_block *after)
 #endif  
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
   seq = g = gimple_build_call (trap, loc);
+  /* Set the limits on seq.  */
+  g->gsbase.prev = g;
+  g->gsbase.next = NULL;
   bb = create_basic_block (seq, NULL, after);
   update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
@@ -548,14 +551,13 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
      call
      # old code  */
   /* Make the blocks & edges. */
-  //stmt_starts_bb_p ();
-  //stmt_ends_bb_p ();
   /* Get the original bb, Thers is only one. 
      For now the basic block is clean.  */
   old_bb = gimple_bb (cs);
   edge_false = split_block (old_bb, cs);
   gcc_assert (edge_false->flags == EDGE_FALLTHRU);
-  edge_false->flags = EDGE_FALSE_VALUE;
+  edge_false->flags &= ~EDGE_FALLTHRU;
+  edge_false->flags |= EDGE_FALSE_VALUE;
   GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
 
   /* Create block after the block contain original call. 
@@ -666,13 +668,8 @@ rap_fe_cfi_execute ()
 	    }
 	}
 
-      // Force the dominate info of current function recompute.
-      //free_dominance_info (CDI_DOMINATORS);
-      //free_dominance_info (CDI_POST_DOMINATORS);
       pop_cfun ();
     }
-  //indirect_function_maps = pointer_map_create (); 
-  //gimple_call_fndecl (const_gimple gs)
 
   return 0;
 }
