@@ -1,7 +1,14 @@
-/* Write by David fuqiang Fan <feqin1023@gmail.com>, member of HardenedLinux.
-   Licensed under the GPL v2
-   The impelmentation code of optimization pass for RAP.
-   Supply the API for RAP  */
+/* Writed by David fuqiang Fan <feqin1023@gmail.com> &
+   Shawn C[a.k.a "citypw"] <citypw@gmail.com> members of HardenedLinux.
+   The code of this file try to make some optimizationsfor  PaX RAP.
+   Supply the API for RAP.
+
+   And we also call function wich compute function type hash from PaX RAP.
+   Code architecture inspired by RAP of PaX Team <pageexec@freemail.hu>.
+
+   Licensed under the GPL v2. */
+
+#include <stdio.h>
 
 #ifndef RAP_OPT_H
 #define RAP_OPT_H
