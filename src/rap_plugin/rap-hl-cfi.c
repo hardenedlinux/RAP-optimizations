@@ -12,6 +12,8 @@
 #include <string.h>
 #include "rap.h"
 #include "tree-pass.h"
+#include "rap-hl-cfi.h"
+#include "pointer-set.h"
 //#include "../include/pointer-set.h"
  
 /* There are many optimization methrod can do for RAP.
@@ -47,7 +49,7 @@ static struct pointer_set_t *pointer_types;
 //
 static bool will_call_ipa_pta;
 /* For compatiable with the original RAP */
-typedef rap_hash_t.hash rap_hash_value_type;
+typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
    when cfun changed set this falg.  */
 static bool is_cfi_chaned_cfun;
