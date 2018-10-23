@@ -13,8 +13,6 @@
 #include "rap.h"
 #include "tree-pass.h"
 #include "rap-hl-cfi.h"
-#include "pointer-set.h"
-//#include "../include/pointer-set.h"
  
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -311,10 +309,10 @@ pointer_map_access (const void *key, void **val, void *type)
 {
   struct cfi_key_value_t contain;
 
-  contain = (cfi_key_value_t *)type;
+  contain = *(struct cfi_key_value_t *)type;
   if (types_compatible_p ((tree)key, contain.type))
   {
-    contain.val = (rap_hash_value_type)**val;
+    contain.val = **(rap_hash_value_type**)val;
     return true;
   }
 
@@ -327,14 +325,14 @@ static rap_hash_value_type
 find_or_create_cfi_hash_val (tree type)
 {
   int i;
-  rap_hash_value_type val;
+  rap_hash_value_type val = 0;
   void **val_address;
 
   struct key_value
    {
      tree type;
      rap_hash_value_type val;
-   } contain;
+   };
 
   gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
   //struct pointer_map_t *cfi_function_hash_maps;
@@ -342,10 +340,11 @@ find_or_create_cfi_hash_val (tree type)
     cfi_db.map = pointer_map_create ();
   
   /* Search */
-  contain = {type, };
+  struct key_value contain = {type, val};
   if (0 == cfi_db.total)
     goto create;
-  if (pointer_set_traverse(cfi_db.map, pointer_map_access, (void *)&contain))
+  pointer_map_traverse (cfi_db.map, pointer_map_access, (void *)&contain);
+  if (contain.val)
     return contain.val;
 
   /* Fall through. update db. */
@@ -353,7 +352,8 @@ create:
   val = (rap_hash_value_type)
 	((rap_hash_function_type (type, imprecise_rap_hash_flags)).hash);
   val_address = pointer_map_insert (cfi_db.map, (void *)type);
-  *val_address = (void *)val;
+  /* Store the rap_hash_value_type hash key as a pointer value. */
+  val_address[0] = (void *)val;
   ++cfi_db.total;
   return val;
 }
