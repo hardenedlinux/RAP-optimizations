@@ -379,7 +379,7 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
   func_type = TREE_TYPE (TREE_TYPE (decl));
   // safe guard 
   gcc_assert (TREE_CODE (decl) == SSA_NAME);
-  gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
+  gcc_assert (TREE_CODE (func_type) == FUNCTION_TYPE);
   
   // create source hash tree.
   if (direct == BUILD_SOURCE_HASH_TREE)
@@ -389,7 +389,7 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
     }
   else
     {
-      //tree off_type;
+      tree off_tree;
       int target_offset;
 
       gcc_assert (direct == BUILD_TARGET_HASH_TREE);
@@ -421,11 +421,12 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
       // func is the function pointer, ADDR_EXPR, pointer(function)
       gcc_assert (FUNCTION_POINTER_TYPE_P ( TREE_TYPE (decl)));
       // type is the result type of cast.
+      off_tree = build_int_cst (*target_off_type_p, (HOST_WIDE_INT)target_offset);
       return fold_build2 (MEM_REF, *target_off_type_p, decl,
 		   // This is a pointer type tree reprensent the offset.
 		   build_int_cst_wide (integer_ptr_type_node,
-				       TREE_INT_CST_LOW (target_offset),
-				       TREE_INT_CST_HIGH (target_offset)));
+				       TREE_INT_CST_LOW (off_tree),
+				       TREE_INT_CST_HIGH (off_tree)));
 
     }
   gcc_assert (0);
@@ -441,6 +442,7 @@ cfi_catch_and_trap_bb (location_t loc, basic_block *after)
   tree trap;
   gimple g;
   gimple_seq seq;
+  basic_block bb;
 #if 0
   tree report;
   tree param;
@@ -469,7 +471,10 @@ cfi_catch_and_trap_bb (location_t loc, basic_block *after)
   g->gsbase.prev = g;
   g->gsbase.next = NULL;
   bb = create_basic_block (seq, NULL, after);
-  update_modified_stmt (g);
+  /* Update ssa.  */
+  gcc_assert (cfun->gimple_df && gimple_ssa_operands (cfun)->ops_active);
+  update_stmt_if_modified (g);
+  //update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
   gimple_set_block (g, bb);
   
