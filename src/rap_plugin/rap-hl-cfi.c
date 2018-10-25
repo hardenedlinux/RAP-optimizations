@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 #include "rap.h"
 #include "tree-pass.h"
 #include "rap-hl-cfi.h"
@@ -353,7 +354,7 @@ create:
 	((rap_hash_function_type (type, imprecise_rap_hash_flags)).hash);
   val_address = pointer_map_insert (cfi_db.map, (void *)type);
   /* Store the rap_hash_value_type hash key as a pointer value. */
-  val_address[0] = (void *)val;
+  val_address[0] = (void *)(ptrdiff_t)val;
   ++cfi_db.total;
   return val;
 }
@@ -437,7 +438,7 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 
 /* Help function called when the fe-cfi violate catched. */
 static basic_block
-cfi_catch_and_trap_bb (location_t loc, basic_block *after)
+cfi_catch_and_trap_bb (gimple cs, basic_block after)
 {
   tree trap;
   gimple g;
@@ -466,17 +467,18 @@ cfi_catch_and_trap_bb (location_t loc, basic_block *after)
   //gsi = gsi_start (seq);
 #endif  
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
-  seq = g = gimple_build_call (trap, loc);
+  seq = g = gimple_build_call (trap, gimple_location (cs));
   /* Set the limits on seq.  */
   g->gsbase.prev = g;
   g->gsbase.next = NULL;
   bb = create_basic_block (seq, NULL, after);
-  /* Update ssa.  */
+  /* For update ssa.  */
   gcc_assert (cfun->gimple_df && gimple_ssa_operands (cfun)->ops_active);
   update_stmt_if_modified (g);
   //update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
-  gimple_set_block (g, bb);
+  gimple_set_location (g, gimple_location (cs));
+  gimple_set_block (g, gimple_block (cs));
   
   return bb;
 }
@@ -547,7 +549,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   // guard test.
   GIMPLE_CHECK (cond, GIMPLE_COND);
   GIMPLE_CHECK (call, GIMPLE_CALL);
-  gcc_assert (cfg_hooks && ! strcmp (cfg_hooks->name, "gimple"));
+  gcc_assert (gimple_has_body_p (cfun->decl));
 
   /* We can sure we have this code fragment(write as gimple pointers):
      # old code
@@ -571,7 +573,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* Create block after the block contain original call. 
      We can have a toplogical for the blocks created and old. */
   // EDGE_TRUE_VALUE
-  catch_bb = cfi_catch_and_trap_bb (gimple_location (cs), edge_false->dest);
+  catch_bb = cfi_catch_and_trap_bb (cs, edge_false->dest);
   /* catch_bb must dominated by old the bb contains the indirect call 
      what we insert cfi guard.  */
   if (current_loops != NULL)
@@ -596,8 +598,9 @@ build_cfi (gimple_stmt_iterator *gp)
   tree th;  // hash get behind the function definitions.
   tree sh;  // hash get before indirect calls.
   tree target_off_type;
+  tree decl;
 
-  cs = gsi_stmt (gsi);
+  cs = gsi_stmt (*gp);
   gcc_assert (is_gimple_call (cs));
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
@@ -679,6 +682,7 @@ rap_hl_cfi_execute ()
 
 /* Genetate the pass structure */
 #define PASS_NAME rap_hl_cfi
+#define NO_GATE
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
