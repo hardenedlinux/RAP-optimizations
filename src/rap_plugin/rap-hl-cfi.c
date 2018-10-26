@@ -492,8 +492,8 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
      change to =>
      +-------
      stmt1;
-     lhs = t_;
-     ne_expr (lhs, s_);
+     lhs_1 = t_;
+     ne_expr (lhs_1, s_);
      // FALLTHRU
      <bb ???> # true
      cfi_catch();
@@ -502,7 +502,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
      +--------
 
    The value of argument s_ is a const integer tree, 
-   t_ is a MEM-REF, may need insert temp varibale as lhs get the value. */
+   t_ is a MEM-REF, may need insert temp varibale as lhs_1 get the value. */
 static void
 insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp, 
 		               tree s_, 
@@ -516,7 +516,8 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   basic_block old_bb;
   basic_block catch_bb;
   edge edge_false;
-  tree lhs;
+  tree lhs;       // temp variable suit for direct ssa name.
+  tree lhs_1;
 
   gsi = *gp;
   cs = gsi_stmt (gsi);
@@ -531,14 +532,17 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
     }
 
   /* Insert gimples. */
-  /* lhs = t_ */
+  /* lhs_1 = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
-  //target = make_ssa_name (var, NULL);
-  g = gimple_build_assign (lhs, t_);
+  gcc_assert (is_gimple_reg (lhs));
+  lhs_1 = make_ssa_name (lhs, NULL);
+  g = gimple_build_assign (lhs_1, t_);
+  // Complete the ssa define statement.
+  SSA_NAME_DEF_STMT (lhs_1) = g;
   gimple_set_block (g, gimple_block (cs));
   gsi_insert_before (&gsi, g, GSI_SAME_STMT);
-  // if (lhs != s_) goto cfi_catch else goto call
-  cond = g = gimple_build_cond (NE_EXPR, lhs, s_, NULL, NULL);
+  // if (lhs_1 != s_) goto cfi_catch else goto call
+  cond = g = gimple_build_cond (NE_EXPR, lhs_1, s_, NULL, NULL);
   gimple_set_block (g, gimple_block (cs));
   gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   
@@ -619,21 +623,16 @@ build_cfi (gimple_stmt_iterator *gp)
   return;
 }
 
-/*
-cgraph_local_node_p 
-types_compatible_p
-flag_ltrans
-flag_lto
-*/
-
+/// cgraph_local_node_p
 /* This new pass will be added after the GCC pass ipa "pta". */
 static unsigned int
 rap_hl_cfi_execute ()
 {
   struct cgraph_node *node;
-  //if (! flag_ltrans)
-    //gcc_assert(0);
-  //struct pointer_map_t *indirect_function_maps;
+  
+  /* If we are in lto mode, execute this pass in the ltrans. */
+  if (flag_lto && ! flag_ltrans)
+    return;
   
   FOR_EACH_DEFINED_FUNCTION (node)
     {
@@ -646,6 +645,9 @@ rap_hl_cfi_execute ()
 
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
+      /* If insert blocks is inside a loop.  */
+      loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
+  
       is_cfi_need_clean_dom_info = true;
       
       FOR_EACH_BB_FN (bb, func)
@@ -673,7 +675,8 @@ rap_hl_cfi_execute ()
 	        }
 	    }
 	}
-
+      
+      loop_optimizer_finalize ();
       pop_cfun ();
     }
 
