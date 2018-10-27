@@ -1,5 +1,7 @@
 #
 !*/testcase/main.c
+*/src/rap_plugin/*.o
+*/src/rap_plugin/*.so
 tags
 *.o
 *.out

@@ -61,7 +61,7 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   //gcc_assert (current_pass);
   if (current_pass 
       && 
-      (! strcmp (((struct opt_pass *)current_pass)->name, "inline")))
+      (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "inline")))
     {
       if (*(bool*)gcc_data)
 	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
@@ -80,7 +80,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   //gcc_assert (current_pass);
   if (current_pass 
       && 
-      (! strcmp (((struct opt_pass *)current_pass)->name, "pta")))
+      (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "pta")))
     {
       *(bool*)gcc_data = true;
       /* The variable optimize is defined int GCC */
@@ -632,7 +632,7 @@ rap_hl_cfi_execute ()
   
   /* If we are in lto mode, execute this pass in the ltrans. */
   if (flag_lto && ! flag_ltrans)
-    return;
+    return 1;
   
   FOR_EACH_DEFINED_FUNCTION (node)
     {
