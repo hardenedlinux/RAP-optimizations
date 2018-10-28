@@ -14,6 +14,10 @@ typedef struct {
 } rap_hash_flags_t;
 extern rap_hash_flags_t imprecise_rap_hash_flags;
 
+//
+bool require_call_hl_cfi;
+bool require_call_hl_gather;
+
 extern bool report_fptr_hash;
 extern bool report_runtime;
 

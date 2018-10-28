@@ -40,6 +40,11 @@ const char *rap_abort_call;
 bool enable_type_ret = false;
 bool enable_type_call = false;
 
+/* If this falg set we will replace original rap forward cfi with hl_cfi.  */
+bool require_call_hl_cfi = false;
+/* Flag to indicate need the rap optimizations. */
+bool require_call_hl_gather = false;
+
 // create the equivalent of
 // asm volatile("" : : : "memory");
 // or
@@ -622,6 +627,10 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	bool enable_abs_ops = false;
 	bool enable_abs_attr = false;
 
+	// hl-cfi & pointer set build pass insert.
+	PASS_INFO(hl_gather,		"pta",	        1, PASS_POS_INSERT_AFTER);
+	PASS_INFO(hl_cfi,		"hl_gather",	1, PASS_POS_INSERT_AFTER);
+	PASS_INFO(rap_ret,		"optimized",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_ret,		"optimized",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_fptr,		"rap_ret",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_mark_retloc,	"mach",		1, PASS_POS_INSERT_AFTER);
@@ -643,6 +652,12 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	for (i = 0; i < argc; ++i) {
 		if (!strcmp(argv[i].key, "disable"))
 			continue;
+		/* Request rap optimizations.  */
+		if (! strcmp(argv[i].key, "opt"))
+			require_call_hl_gather = true;
+		/* Request cfi replace.  */
+		if (! strcmp(argv[i].key, "hl_cfi"))
+			require_call_hl_cfi = true;
 
 		if (!strcmp(argv[i].key, "typecheck")) {
 			char *values, *value, *saveptr;
@@ -785,6 +800,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 
 		if (!enable_type_ret)
 			rap_fptr_pass_info.reference_pass_name = "optimized";
+		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_gather_pass_info);
+		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_cfi_pass_info);
 		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &rap_fptr_pass_info);
 	}
 

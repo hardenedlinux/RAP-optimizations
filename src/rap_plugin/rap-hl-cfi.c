@@ -59,6 +59,7 @@ void
 rap_check_will_call_passes (void* gcc_data, void* user_data) 
 {
   //gcc_assert (current_pass);
+#if 0
   if (current_pass 
       && 
       (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "inline")))
@@ -66,7 +67,7 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
       if (*(bool*)gcc_data)
 	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
     }
-
+#endif
   return;
 }
 
@@ -76,7 +77,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
 {
   /* Make sure we have reach */
   bool will_call_ipa_pta = false;
-
+#if 0
   //gcc_assert (current_pass);
   if (current_pass 
       && 
@@ -87,7 +88,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
       *(int*)user_data = optimize;
     }
   //gcc_assert (init);
-
+#endif
   return;
 }
 
@@ -224,6 +225,34 @@ rap_gather_function_targets ()
   return;
 } // end of rap_gather_function_targets
 
+/* The wraper of hl_gather pass.  */
+static unsigned int
+hl_gather_execute ()
+{
+  rap_gather_function_targets ();
+  
+  return 0;
+}
+
+/* Will we need the gather?  */
+static bool
+hl_gather_gate ()
+{
+  if (require_call_hl_gather)
+    return true;
+
+  return false;
+}
+
+/* Genetate the pass structure */
+#define PASS_NAME hl_gather
+#define NO_GATE
+//#define PROPERTIES_REQUIRED PROP_gimple_any
+//#define PROPERTIES_PROVIDED PROP_gimple_lcf
+#define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
+	TODO_remove_unused_locals | TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
+#include "gcc-generate-simple_ipa-pass.h"
+#undef PASS_NAME
 
 /* Basic test of function nature */
 static inline bool 
@@ -626,7 +655,7 @@ build_cfi (gimple_stmt_iterator *gp)
 /// cgraph_local_node_p
 /* This new pass will be added after the GCC pass ipa "pta". */
 static unsigned int
-rap_hl_cfi_execute ()
+hl_cfi_execute ()
 {
   struct cgraph_node *node;
   
@@ -683,12 +712,22 @@ rap_hl_cfi_execute ()
   return 0;
 }
 
+/* Will need replace the forward cfi? */
+static bool
+hl_cfi_gate ()
+{
+  if (require_call_hl_cfi)
+    return true;
+
+  return false;
+}
+
 /* Genetate the pass structure */
-#define PASS_NAME rap_hl_cfi
-#define NO_GATE
+#define PASS_NAME hl_cfi
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
 	TODO_remove_unused_locals | TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
 #include "gcc-generate-simple_ipa-pass.h"
+#undef PASS_NAME
 

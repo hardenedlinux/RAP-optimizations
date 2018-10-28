@@ -12,7 +12,10 @@ bool report_fptr_hash;
 
 static bool rap_fptr_gate(void)
 {
-	return rap_cmodel_check();
+  if (require_call_hl_cfi)
+    return false;
+  else
+    return rap_cmodel_check();
 }
 
 static tree build_rap_hash(gimple call_stmt, tree fntype)
