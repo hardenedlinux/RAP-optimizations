@@ -59,7 +59,6 @@ void
 rap_check_will_call_passes (void* gcc_data, void* user_data) 
 {
   //gcc_assert (current_pass);
-#if 0
   if (current_pass 
       && 
       (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "inline")))
@@ -67,7 +66,6 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
       if (*(bool*)gcc_data)
 	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
     }
-#endif
   return;
 }
 
@@ -77,7 +75,6 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
 {
   /* Make sure we have reach */
   bool will_call_ipa_pta = false;
-#if 0
   //gcc_assert (current_pass);
   if (current_pass 
       && 
@@ -88,7 +85,6 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
       *(int*)user_data = optimize;
     }
   //gcc_assert (init);
-#endif
   return;
 }
 
@@ -249,8 +245,9 @@ hl_gather_gate ()
 #define NO_GATE
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
-#define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
-	TODO_remove_unused_locals | TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
+#define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
+	TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
+	TODO_rebuild_cgraph_edges | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
@@ -726,8 +723,9 @@ hl_cfi_gate ()
 #define PASS_NAME hl_cfi
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
-#define TODO_FLAGS_FINISH TODO_update_ssa_any | TODO_verify_all | TODO_dump_func | \
-	TODO_remove_unused_locals | TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
+#define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
+	TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
+	TODO_rebuild_cgraph_edges | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 

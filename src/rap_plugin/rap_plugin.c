@@ -631,7 +631,6 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	PASS_INFO(hl_gather,		"pta",	        1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(hl_cfi,		"hl_gather",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_ret,		"optimized",	1, PASS_POS_INSERT_AFTER);
-	PASS_INFO(rap_ret,		"optimized",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_fptr,		"rap_ret",	1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_mark_retloc,	"mach",		1, PASS_POS_INSERT_AFTER);
 	PASS_INFO(rap_unignore,		"final",	1, PASS_POS_INSERT_BEFORE);
