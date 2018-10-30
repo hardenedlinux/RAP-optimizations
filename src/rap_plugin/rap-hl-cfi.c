@@ -14,7 +14,8 @@
 #include "rap.h"
 #include "tree-pass.h"
 #include "rap-hl-cfi.h"
- 
+#include "diagnostic.h"
+
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
 
@@ -34,7 +35,7 @@
 //extern struct simple_ipa_opt_pass pass_ipa_pta;
 
 /* Contains the beed called optimization level of GCC */
-int gcc_optimize_level = 0;
+int cfi_gcc_optimize_level = 0;
 /* Count how many function we have optimized */
 int rap_opt_statistics_data = 0;
 /* Contain the statistics data, maybe gcc will called many times, we need output
@@ -54,6 +55,8 @@ typedef int rap_hash_value_type;
 static bool is_cfi_chaned_cfun;
 static bool is_cfi_need_clean_dom_info;
 
+// gcc internal defined pass name.
+extern struct ipa_opt_pass_d pass_ipa_inline;
 /* Test GCC will call some passes which is benefit. */
 void 
 rap_check_will_call_passes (void* gcc_data, void* user_data) 
@@ -61,7 +64,8 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   //gcc_assert (current_pass);
   if (current_pass 
       && 
-      (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "inline")))
+     (void *)current_pass == (void *)&pass_ipa_inline)
+      /*(! strcmp ((current_pass)->name, "inline")))*/
     {
       if (*(bool*)gcc_data)
 	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
@@ -69,16 +73,19 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   return;
 }
 
+// gcc internal defined pass name.
+extern struct simple_ipa_opt_pass pass_ipa_pta;
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
 {
   /* Make sure we have reach */
-  bool will_call_ipa_pta = false;
-  //gcc_assert (current_pass);
-  if (current_pass 
-      && 
-      (! strcmp ((/*(struct opt_pass *)*/current_pass)->name, "pta")))
+  will_call_ipa_pta = false;
+  gcc_assert (current_pass);
+  if (optimize
+      && !(errorcount || sorrycount)
+      && (void *)current_pass == (void *)&pass_ipa_pta)
+      /*(! strcmp ((current_pass)->name, "pta")))*/
     {
       *(bool*)gcc_data = true;
       /* The variable optimize is defined int GCC */
@@ -160,7 +167,7 @@ rap_gather_function_targets ()
   unsigned int i;
 
   /* This optimization depend on GCC optimizations */
-  if (0 == gcc_optimize_level)
+  if (0 == cfi_gcc_optimize_level)
     return;
   // 
   gcc_assert (will_call_ipa_pta);
@@ -234,7 +241,7 @@ hl_gather_execute ()
 static bool
 hl_gather_gate ()
 {
-  if (require_call_hl_gather)
+  if (will_call_ipa_pta && require_call_hl_gather)
     return true;
 
   return false;
@@ -242,7 +249,6 @@ hl_gather_gate ()
 
 /* Genetate the pass structure */
 #define PASS_NAME hl_gather
-#define NO_GATE
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
@@ -272,7 +278,7 @@ is_rap_function_maybe_roped (tree f)
   if (! is_rap_function_may_be_aliased (f))
     return 0;
   /* Ask the oracle for help */
-  if (0 == gcc_optimize_level)
+  if (0 == cfi_gcc_optimize_level)
     /* Function is_rap_function_may_be_aliased() must be failed we arive here, 
        but our oracle dependent the GCC optimizations. */
     return 1;

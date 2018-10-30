@@ -18,7 +18,10 @@ __visible int plugin_is_GPL_compatible;
 
 static struct plugin_info rap_plugin_info = {
 	.version	= "201612091515",
-	.help		= "typecheck=ret,call\tenable the corresponding type hash checking based features\n"
+	.help		= "opt\tenable rap optimizations of HardenedLinux\n"
+		          "hl_cfi\tenable the cfi implementation of HardenedLinux"
+			  "and replace the original forwaed cfi of rap\n"
+		          "typecheck=ret,call\tenable the corresponding type hash checking based features\n"
 			  "retabort=ud2\t\t\toverride __builtin_trap with specified asm for both kinds of return address checking\n"
 			  "callabort=ud2\t\t\toverride __builtin_trap with specified asm for indirect call checking\n"
 			  "hash=abs,abs-finish,abs-ops,abs-attr,const,volatile\n"
@@ -653,10 +656,16 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			continue;
 		/* Request rap optimizations.  */
 		if (! strcmp(argv[i].key, "opt"))
+		{
 			require_call_hl_gather = true;
+			continue;
+		}
 		/* Request cfi replace.  */
 		if (! strcmp(argv[i].key, "hl_cfi"))
+		{
 			require_call_hl_cfi = true;
+			continue;
+		}
 
 		if (!strcmp(argv[i].key, "typecheck")) {
 			char *values, *value, *saveptr;
@@ -765,7 +774,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	register_callback(plugin_name, PLUGIN_INFO, NULL, &rap_plugin_info);
 	/* register the rap optimization*/
         register_callback(plugin_name, PLUGIN_OVERRIDE_GATE, rap_try_call_ipa_pta, 
-			  (void *)&gcc_optimize_level);
+			  (void *)&cfi_gcc_optimize_level);
 
 	if (enable_type_ret) {
 		flag_crossjumping = 0;
