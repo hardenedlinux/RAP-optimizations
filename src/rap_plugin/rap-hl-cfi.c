@@ -47,7 +47,7 @@ static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
 //
-static bool will_call_ipa_pta;
+static bool will_call_ipa_ptai = false;
 /* For compatiable with the original RAP */
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
@@ -79,9 +79,11 @@ extern struct simple_ipa_opt_pass pass_ipa_pta;
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
 {
-  /* Make sure we have reach */
-  will_call_ipa_pta = false;
   gcc_assert (current_pass);
+  /* If already execute pta pass, return immediatelly.  */
+  if (will_call_ipa_pta)
+    return;
+  
   if (optimize
       && !(errorcount || sorrycount)
       && (void *)current_pass == (void *)&pass_ipa_pta)
