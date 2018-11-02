@@ -15,6 +15,7 @@
 #include "tree-pass.h"
 #include "rap-hl-cfi.h"
 #include "diagnostic.h"
+#include "options.h"
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -35,7 +36,7 @@
 //extern struct simple_ipa_opt_pass pass_ipa_pta;
 
 /* Contains the beed called optimization level of GCC */
-int cfi_gcc_optimize_level = 0;
+volatile int cfi_gcc_optimize_level = 0;
 /* Count how many function we have optimized */
 int rap_opt_statistics_data = 0;
 /* Contain the statistics data, maybe gcc will called many times, we need output
@@ -47,7 +48,7 @@ static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
 //
-static bool will_call_ipa_ptai = false;
+static bool will_call_ipa_pta = false;
 /* For compatiable with the original RAP */
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
@@ -75,6 +76,7 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
 
 // gcc internal defined pass name.
 extern struct simple_ipa_opt_pass pass_ipa_pta;
+extern struct gcc_options global_options;
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
@@ -83,17 +85,16 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   /* If already execute pta pass, return immediatelly.  */
   if (will_call_ipa_pta)
     return;
-  
-  if (optimize
-      && !(errorcount || sorrycount)
-      && (void *)current_pass == (void *)&pass_ipa_pta)
-      /*(! strcmp ((current_pass)->name, "pta")))*/
+  if (/*optimize && */
+      (0 == errorcount + sorrycount) &&
+      (void *)current_pass == (void *)&pass_ipa_pta)
     {
+      will_call_ipa_pta = true;
       *(bool*)gcc_data = true;
       /* The variable optimize is defined int GCC */
-      *(int*)user_data = optimize;
+      *(volatile int*)user_data = optimize;
     }
-  //gcc_assert (init);
+  
   return;
 }
 

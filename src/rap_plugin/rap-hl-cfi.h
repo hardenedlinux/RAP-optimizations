@@ -14,7 +14,7 @@
 #define RAP_OPT_H
 
 /* Contains the beed called optimization level of GCC */
-extern int cfi_gcc_optimize_level;
+extern volatile int cfi_gcc_optimize_level;
 /* Count how many function we have optimized */
 extern int rap_opt_statistics_data;
 
