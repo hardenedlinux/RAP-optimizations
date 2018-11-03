@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
+#include "gcc-common.h"
 #include "rap.h"
 #include "tree-pass.h"
 #include "rap-hl-cfi.h"
@@ -48,7 +49,7 @@ static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
 //
-static bool will_call_ipa_pta = false;
+//static bool will_call_ipa_pta = false;
 /* For compatiable with the original RAP */
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
@@ -74,9 +75,10 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   return;
 }
 
+#if 0
 // gcc internal defined pass name.
 extern struct simple_ipa_opt_pass pass_ipa_pta;
-extern struct gcc_options global_options;
+//extern struct gcc_options global_options;
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
@@ -85,6 +87,8 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   /* If already execute pta pass, return immediatelly.  */
   if (will_call_ipa_pta)
     return;
+  if (optimize)
+    printf ("optimize\n");
   if (/*optimize && */
       (0 == errorcount + sorrycount) &&
       (void *)current_pass == (void *)&pass_ipa_pta)
@@ -97,6 +101,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   
   return;
 }
+#endif
 
 /* Tools for type database operates */
 static void
@@ -173,7 +178,7 @@ rap_gather_function_targets ()
   if (0 == cfi_gcc_optimize_level)
     return;
   // 
-  gcc_assert (will_call_ipa_pta);
+  gcc_assert (hl_will_call_ipa_pta);
   bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
   /* Gather function pointer infos from global may available variable */
@@ -244,7 +249,7 @@ hl_gather_execute ()
 static bool
 hl_gather_gate ()
 {
-  if (will_call_ipa_pta && require_call_hl_gather)
+  if (hl_will_call_ipa_pta && require_call_hl_gather)
     return true;
 
   return false;
@@ -448,7 +453,7 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 	  *target_off_type_p = integer_type_node;
         }
       else
-	gcc_unreachable();
+	gcc_unreachable ();
 
       /* Build the tree for : ((rap_hash_value_type *)target_function - 1) 
          This code is referenced from gcc source: gimplify_modify_expr_rhs() */
@@ -465,7 +470,8 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 				       TREE_INT_CST_HIGH (off_tree)));
 
     }
-  gcc_assert (0);
+
+  gcc_unreachable ();
 }
 
 // linux kernel function.
@@ -636,7 +642,7 @@ build_cfi (gimple_stmt_iterator *gp)
   gimple cs;
   tree th;  // hash get behind the function definitions.
   tree sh;  // hash get before indirect calls.
-  tree target_off_type;
+  tree target_off_type = NULL;
   tree decl;
 
   cs = gsi_stmt (*gp);

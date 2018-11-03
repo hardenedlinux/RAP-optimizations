@@ -17,6 +17,7 @@
 extern volatile int cfi_gcc_optimize_level;
 /* Count how many function we have optimized */
 extern int rap_opt_statistics_data;
+extern bool hl_will_call_ipa_pta;
 
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void rap_try_call_ipa_pta (void* gcc_data, void* user_data);
