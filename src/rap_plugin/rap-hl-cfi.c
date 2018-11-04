@@ -348,16 +348,20 @@ struct cfi_key_value_t
 bool
 pointer_map_access (const void *key, void **val, void *type)
 {
-  struct cfi_key_value_t contain;
+  struct cfi_key_value_t *contain_addr;
 
-  contain = *(struct cfi_key_value_t *)type;
-  if (types_compatible_p ((tree)key, contain.type))
+  contain_addr = (struct cfi_key_value_t *)type;
+  if (types_compatible_p ((tree)key, contain_addr->type))
   {
-    contain.val = **(rap_hash_value_type**)val;
-    return true;
+    contain_addr->val = (rap_hash_value_type)(ptrdiff_t)*val;
+    /* For the hook compatablity, 
+       we want pointer_map_traverse() STOP, need return false.  */
+    //return true;
+    return false;
   }
 
-  return false;
+  /* Wierd. hook compatiablity.  */
+  return true;
 }
 
 /* Search the [function type : hash value] table, if not have compatiable 
@@ -508,7 +512,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   //gsi = gsi_start (seq);
 #endif  
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
-  seq = g = gimple_build_call (trap, gimple_location (cs));
+  seq = g = gimple_build_call (trap, 0);
   /* Set the limits on seq.  */
   g->gsbase.prev = g;
   g->gsbase.next = NULL;
@@ -567,8 +571,12 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* First of all, disable the dom info, for effecicent and simplity */
   if (is_cfi_need_clean_dom_info && ! is_cfi_chaned_cfun)
     {
-      set_dom_info_availability (CDI_DOMINATORS, DOM_NONE);
-      set_dom_info_availability (CDI_POST_DOMINATORS, DOM_NONE);
+      free_dominance_info (CDI_DOMINATORS);
+      free_dominance_info (CDI_POST_DOMINATORS);
+      /* Set disavailable is NOT enough, 
+	 will catch assert of function calculate_dominance_info.  */
+      //set_dom_info_availability (CDI_DOMINATORS, DOM_NONE);
+      //set_dom_info_availability (CDI_POST_DOMINATORS, DOM_NONE);
       is_cfi_need_clean_dom_info = false;
     }
 
