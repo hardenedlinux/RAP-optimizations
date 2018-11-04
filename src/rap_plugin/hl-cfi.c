@@ -14,9 +14,7 @@
 #include "gcc-common.h"
 #include "rap.h"
 #include "tree-pass.h"
-#include "rap-hl-cfi.h"
 #include "diagnostic.h"
-#include "options.h"
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -37,7 +35,7 @@
 //extern struct simple_ipa_opt_pass pass_ipa_pta;
 
 /* Contains the beed called optimization level of GCC */
-volatile int cfi_gcc_optimize_level = 0;
+int cfi_gcc_optimize_level = 0;
 /* Count how many function we have optimized */
 int rap_opt_statistics_data = 0;
 /* Contain the statistics data, maybe gcc will called many times, we need output
@@ -49,7 +47,7 @@ static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *pointer_types;
 //
-//static bool will_call_ipa_pta = false;
+static bool will_call_ipa_pta = false;
 /* For compatiable with the original RAP */
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
@@ -75,10 +73,9 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   return;
 }
 
-#if 0
 // gcc internal defined pass name.
 extern struct simple_ipa_opt_pass pass_ipa_pta;
-//extern struct gcc_options global_options;
+extern struct gcc_options global_options;
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
@@ -87,9 +84,15 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   /* If already execute pta pass, return immediatelly.  */
   if (will_call_ipa_pta)
     return;
-  if (optimize)
-    printf ("optimize\n");
-  if (/*optimize && */
+  
+  /* Notice, There is a EXTRA item definition: x_flag_emit_templates 
+     in /usr/lib/gcc/x86_64-linux-gnu/4.8/plugin/include/options.h
+     But when we build the gcc whose code download from gnu.gcc.org haven't
+     this item, so when you access the item after x_flag_dump_rtl_in_asm in 
+     the struct global_options, you are fucked.  
+     I really thought this is a gcc bug, when i dig into the g++ parser
+     after two days. I found this above.  */
+  if (optimize &&
       (0 == errorcount + sorrycount) &&
       (void *)current_pass == (void *)&pass_ipa_pta)
     {
@@ -101,7 +104,6 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   
   return;
 }
-#endif
 
 /* Tools for type database operates */
 static void
@@ -178,7 +180,7 @@ rap_gather_function_targets ()
   if (0 == cfi_gcc_optimize_level)
     return;
   // 
-  gcc_assert (hl_will_call_ipa_pta);
+  gcc_assert (will_call_ipa_pta);
   bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
   /* Gather function pointer infos from global may available variable */
@@ -249,7 +251,7 @@ hl_gather_execute ()
 static bool
 hl_gather_gate ()
 {
-  if (hl_will_call_ipa_pta && require_call_hl_gather)
+  if (will_call_ipa_pta && require_call_hl_gather)
     return true;
 
   return false;
