@@ -114,12 +114,11 @@ insert_type_db (tree t)
   if (! pointer_types)
     pointer_types = pointer_set_create ();
 
-  gcc_assert (FUNCTION_POINTER_TYPE_P (t));
+  gcc_assert (FUNCTION_POINTER_TYPE_P (TREE_TYPE (t)));
   pointer_set_insert (pointer_types, (const void *)ty);
 
   return;
 }
-
 
 /* If after alias analysis some function pointer may be point anything, we have
    to make the conservation solution, contain and cache the the point to type,
@@ -190,7 +189,7 @@ rap_gather_function_targets ()
 	continue;
       gcc_assert (t = var->symbol.decl);
       /* We only care about function pointer variables */
-      if (! FUNCTION_POINTER_TYPE_P (t))
+      if (! FUNCTION_POINTER_TYPE_P (TREE_TYPE(t)))
 	continue;
       rap_gather_function_targets_1 (t);
     }
@@ -211,9 +210,8 @@ rap_gather_function_targets ()
         RAP add guard instruction. */
       FOR_EACH_VEC_ELT (*func->gimple_df->ssa_names, i, t)
 	{
-	  if (! (t || FUNCTION_POINTER_TYPE_P (t)))
-	    continue;
-	  rap_gather_function_targets_1 (t);
+	  if (t && FUNCTION_POINTER_TYPE_P (TREE_TYPE (t)))
+	    rap_gather_function_targets_1 (t);
         }
     } // FOR_EACH_DEFINED_FUNCTION (node)
   
