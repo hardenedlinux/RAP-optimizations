@@ -31,23 +31,22 @@
    
    2, Global alias anylysis for the avail function set. */
 
-/* This data structure defined in gcc source. */
-//extern struct simple_ipa_opt_pass pass_ipa_pta;
-
 /* Contains the beed called optimization level of GCC */
-int cfi_gcc_optimize_level = 0;
+int cfi_gcc_optimize_level;
 /* Count how many function we have optimized */
-int rap_opt_statistics_data = 0;
+int rap_opt_statistics_data;
 /* Contain the statistics data, maybe gcc will called many times, we need output
    data in the same file, for the conventices of scripts process. */
 const char *dump_rap_opt_statistics_filename = "rap_opt_statistics_dump";
 FILE *dump_rap_opt_statistics_fd;
-// Hold all the ROP target functions.
+
+/* Contain all the sensitive functions which maybe the targets of ROP.
+   so all of these functons should compute and output the function hash. */
 static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
-static struct pointer_set_t *pointer_types;
+static struct pointer_set_t *sensi_func_types;
 //
-static bool will_call_ipa_pta = false;
+static bool will_call_ipa_pta;
 /* For compatiable with the original RAP */
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
@@ -76,6 +75,7 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
 // gcc internal defined pass name.
 extern struct simple_ipa_opt_pass pass_ipa_pta;
 extern struct gcc_options global_options;
+
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
@@ -111,11 +111,11 @@ insert_type_db (tree t)
 {
   tree ty = TREE_TYPE (t);
 
-  if (! pointer_types)
-    pointer_types = pointer_set_create ();
+  if (! sensi_func_types)
+    sensi_func_types = pointer_set_create ();
 
   gcc_assert (FUNCTION_POINTER_TYPE_P (TREE_TYPE (t)));
-  pointer_set_insert (pointer_types, (const void *)ty);
+  pointer_set_insert (sensi_func_types, (const void *)ty);
 
   return;
 }
@@ -141,9 +141,6 @@ rap_base_type_db_fliter (const void *db_type, void *fn)
 static void
 rap_gather_function_targets_1 (tree t)
 {
-  //types_compatible_p()
-  //TREE_TYPE()
-  //FUNCTION_POINTER_TYPE_P()
   struct ptr_info_def *pi;
   bitmap set;
   pi = SSA_NAME_PTR_INFO (t);
@@ -151,7 +148,8 @@ rap_gather_function_targets_1 (tree t)
     {
       if (pi->pt.anything)
         /* we are in trouble, pointer analysis can not give any answer about 
-           this pointer point to */
+           this pointer point to, so we record the all the type of the 
+	   function pointer. */
         insert_type_db (t);
     }
   else
@@ -164,14 +162,30 @@ rap_gather_function_targets_1 (tree t)
   return;
 }
 
-/* Entry point of build the oracle, gather what functions never may be 
-   indirected called */
+/* Entry point of build the oracle which can answer which function is maybe 
+   ROPed.
+
+   Technically we have two sets support this:
+   - sensi_func_types : which for the worse case of ipa-pta cann't 
+                        compute the pointers point to set. we contain the 
+			pointers types.
+   - sensi_funcs : the core database of oracle. contains all the functions
+                   which is sensitive.
+
+   And we also code of have three part for this:
+   1, Global variables in varpool whose type is pointer to function. 
+      we pull it's point to set into sensi_funcs or the worse it's type 
+      (conservative, presume it can point to any function with the 
+      compatiable type).
+   2, Local variables in cfun->gimple_df.ssa_names. like as above.
+   3, Final fliter for all the functions, whose type is compatiables with
+      any item of the sensi_func_types.  */
 void 
 rap_gather_function_targets ()
 {
   struct cgraph_node *node;
   struct varpool_node *var;
-  tree t;
+  tree t = NULL;
   struct function *func;
   unsigned int i;
 
@@ -196,13 +210,12 @@ rap_gather_function_targets ()
   /* Gather function pointer infos from every function */
   FOR_EACH_DEFINED_FUNCTION (node)
     {
-      t = NULL;
-
       /* Nodes without a body are not interesting.  */
       if (!cgraph_function_with_gimple_body_p (node))
 	continue;
+
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
-      //push_cfun (func);
+      
       /* Function pointers will be SSA_NAME contained in current function, 
         When gcc after pointer analysis we gather all the functions may be 
         pointed by some function pointer and we ignore which function pointer
@@ -217,20 +230,20 @@ rap_gather_function_targets ()
   
   /* We have see all of the data about alias and build the type database, It's 
      time for the final fliter */
-  if (! pointer_types)
+  if (! sensi_func_types)
     return;
-  /* fial fliter */
+
+  /* final fliter */
   FOR_EACH_DEFINED_FUNCTION (node)
     {
-      t = NULL;
-
       /* Nodes without a body are not interesting.  */
       if (!cgraph_function_with_gimple_body_p (node))
 	continue;
-      func = DECL_STRUCT_FUNCTION (node->symbol.decl);
-      pointer_set_traverse (pointer_types, 
+
+      t = node->symbol.decl;
+      pointer_set_traverse (sensi_func_types, 
 		            rap_base_type_db_fliter,
-		            func);
+		            t);
     }
 
   return;
@@ -311,7 +324,7 @@ rap_optimization_clean ()
   /* Now we have finish our job, close file and destroy the GCC allocated data*/
   fclose (dump_rap_opt_statistics_fd);
   bitmap_clear (sensi_funcs);
-  pointer_set_destroy (pointer_types);
+  pointer_set_destroy (sensi_func_types);
 
   return;
 }
