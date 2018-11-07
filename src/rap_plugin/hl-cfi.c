@@ -1,6 +1,6 @@
 /* Writed by David fuqiang Fan <feqin1023@gmail.com> &
    Shawn C[a.k.a "citypw"] <citypw@gmail.com> members of HardenedLinux.
-   The code of this file try to make some optimizationsfor  PaX RAP.
+   The code of this file try to make some optimizations for PaX RAP.
    Supply the API for RAP.
 
    And we also call function wich compute function type hash from PaX RAP.
@@ -15,6 +15,7 @@
 #include "rap.h"
 #include "tree-pass.h"
 #include "diagnostic.h"
+#include "bitmap.h"
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -56,6 +57,7 @@ static bool is_cfi_need_clean_dom_info;
 
 // gcc internal defined pass name.
 extern struct ipa_opt_pass_d pass_ipa_inline;
+
 /* Test GCC will call some passes which is benefit. */
 void 
 rap_check_will_call_passes (void* gcc_data, void* user_data) 
@@ -105,6 +107,19 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   return;
 }
 
+/* Basic test of function nature */
+static inline bool 
+is_rap_function_may_be_aliased (tree f)
+{
+  return (TREE_CODE (f) != CONST_DECL
+	  && !((TREE_STATIC (f) || TREE_PUBLIC (f) || DECL_EXTERNAL (f))
+	       && TREE_READONLY (f)
+	       && !TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (f)))
+	  && (TREE_PUBLIC (f)
+	      || DECL_EXTERNAL (f)
+	      || TREE_ADDRESSABLE (f)));
+}
+
 /* Tools for type database operates */
 static void
 insert_type_db (tree t)
@@ -115,6 +130,8 @@ insert_type_db (tree t)
     sensi_func_types = pointer_set_create ();
 
   gcc_assert (FUNCTION_POINTER_TYPE_P (TREE_TYPE (t)));
+  gcc_assert (TREE_CODE (TREE_TYPE (ty)) == FUNCTION_TYPE);
+
   pointer_set_insert (sensi_func_types, (const void *)ty);
 
   return;
@@ -123,16 +140,17 @@ insert_type_db (tree t)
 /* If after alias analysis some function pointer may be point anything, we have
    to make the conservation solution, contain and cache the the point to type,
    when emit RAP guard code, make sure all the functions of the compatible type
-   NOT igonred and optimized 
-   Return value is trivial */
+   NOT igonred and optimized.
+   If return false function pointer_set_staverse() of outside will stop. */ 
 static bool
-rap_base_type_db_fliter (const void *db_type, void *fn)
+rap_base_type_db_fliter (const void *type, void *fn)
 {
   tree f = (tree) fn;
   gcc_assert (TREE_CODE (f) == FUNCTION_DECL);
-  if (types_compatible_p ((tree)db_type, TREE_TYPE(f)))
-    if (bitmap_clear_bit (sensi_funcs, DECL_UID(f)))
-      return true;
+
+  if (types_compatible_p ((tree)type, TREE_TYPE(f)))
+    if (bitmap_set_bit (sensi_funcs, DECL_UID(f)))
+      return false;
 
   return true;
 }
@@ -144,18 +162,23 @@ rap_gather_function_targets_1 (tree t)
   struct ptr_info_def *pi;
   bitmap set;
   pi = SSA_NAME_PTR_INFO (t);
-  if (pi)
+
+  gcc_assert (FUNCTION_POINTER_TYPE_P (TREE_TYPE(t)));
+
+  if (NULL == pi || pi->pt.anything)
     {
-      if (pi->pt.anything)
-        /* we are in trouble, pointer analysis can not give any answer about 
-           this pointer point to, so we record the all the type of the 
-	   function pointer. */
-        insert_type_db (t);
+      /* we are in trouble, pointer analysis can not give any answer about 
+         this pointer point to, so we record the all the type of the
+     	 function pointer. */	    
+      insert_type_db (t);
+      return;
     }
   else
     {
+      // elseif part.
       set = pi->pt.vars;
       if (! bitmap_empty_p (set))
+	/* sensi_funcs |= set */
         bitmap_ior_into (sensi_funcs, set);
     }
 
@@ -194,9 +217,11 @@ rap_gather_function_targets ()
     return;
   // 
   gcc_assert (will_call_ipa_pta);
+  gcc_assert (NULL == sensi_funcs);
+
   bitmap sensi_funcs = BITMAP_ALLOC (NULL);
 
-  /* Gather function pointer infos from global may available variable */
+  /* 1, Gather function pointer infos from globals in varpool. */
   FOR_EACH_VARIABLE (var)
     {
       if (var->alias)
@@ -207,7 +232,7 @@ rap_gather_function_targets ()
 	continue;
       rap_gather_function_targets_1 (t);
     }
-  /* Gather function pointer infos from every function */
+  /* 2, Gather function pointer infos from locals of every functions. */
   FOR_EACH_DEFINED_FUNCTION (node)
     {
       /* Nodes without a body are not interesting.  */
@@ -228,8 +253,8 @@ rap_gather_function_targets ()
         }
     } // FOR_EACH_DEFINED_FUNCTION (node)
   
-  /* We have see all of the data about alias and build the type database, It's 
-     time for the final fliter */
+  /* 3, We have see all of the data about alias and build the type database, 
+     It's time for the final oracle. */
   if (! sensi_func_types)
     return;
 
@@ -241,6 +266,15 @@ rap_gather_function_targets ()
 	continue;
 
       t = node->symbol.decl;
+
+      /* Never been the target. local functions, etc..  */
+      if (is_rap_function_may_be_aliased (t))
+	continue;
+
+#ifdef HL_CFI_CHECKING
+      gcc_assert(! bitmap_bit_p (sensi_funcs, DECL_UID (t));
+#endif
+
       pointer_set_traverse (sensi_func_types, 
 		            rap_base_type_db_fliter,
 		            t);
@@ -277,19 +311,6 @@ hl_gather_gate ()
 	TODO_rebuild_cgraph_edges | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
-
-/* Basic test of function nature */
-static inline bool 
-is_rap_function_may_be_aliased (tree f)
-{
-  return (TREE_CODE (f) != CONST_DECL
-	  && !((TREE_STATIC (f) || TREE_PUBLIC (f) || DECL_EXTERNAL (f))
-	       && TREE_READONLY (f)
-	       && !TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (f)))
-	  && (TREE_PUBLIC (f)
-	      || DECL_EXTERNAL (f)
-	      /*|| TREE_ADDRESSABLE (f)*/ ));
-}
 
 /* Entry point of the oracle, look up current function weather or not beed
    gathered into our target function set. If YES return 1 otherwise return 0 */
