@@ -17,6 +17,7 @@
 #include "diagnostic.h"
 #include "bitmap.h"
 
+
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
 
@@ -31,6 +32,7 @@
       scope avail function and the proper type.
    
    2, Global alias anylysis for the avail function set. */
+
 
 /* Contains the beed called optimization level of GCC */
 int cfi_gcc_optimize_level;
@@ -58,7 +60,9 @@ static bool is_cfi_need_clean_dom_info;
 // gcc internal defined pass name.
 extern struct ipa_opt_pass_d pass_ipa_inline;
 
+
 /* Test GCC will call some passes which is benefit. */
+
 void 
 rap_check_will_call_passes (void* gcc_data, void* user_data) 
 {
@@ -78,7 +82,9 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
 extern struct simple_ipa_opt_pass pass_ipa_pta;
 extern struct gcc_options global_options;
 
+
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
+
 void 
 rap_try_call_ipa_pta (void* gcc_data, void* user_data) 
 {
@@ -107,7 +113,9 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   return;
 }
 
+
 /* Basic test of function nature */
+
 static inline bool 
 is_rap_function_may_be_aliased (tree f)
 {
@@ -120,7 +128,9 @@ is_rap_function_may_be_aliased (tree f)
 	      || TREE_ADDRESSABLE (f)));
 }
 
+
 /* Tools for type database operates */
+
 static void
 insert_type_db (tree t)
 {
@@ -137,11 +147,13 @@ insert_type_db (tree t)
   return;
 }
 
+
 /* If after alias analysis some function pointer may be point anything, we have
    to make the conservation solution, contain and cache the the point to type,
    when emit RAP guard code, make sure all the functions of the compatible type
    NOT igonred and optimized.
    If return false function pointer_set_staverse() of outside will stop. */ 
+
 static bool
 rap_base_type_db_fliter (const void *type, void *fn)
 {
@@ -155,7 +167,9 @@ rap_base_type_db_fliter (const void *type, void *fn)
   return true;
 }
 
+
 /* The real worker */
+
 static void
 rap_gather_function_targets_1 (tree t)
 {
@@ -185,6 +199,7 @@ rap_gather_function_targets_1 (tree t)
   return;
 }
 
+
 /* Entry point of build the oracle which can answer which function is maybe 
    ROPed.
 
@@ -203,6 +218,7 @@ rap_gather_function_targets_1 (tree t)
    2, Local variables in cfun->gimple_df.ssa_names. like as above.
    3, Final fliter for all the functions, whose type is compatiables with
       any item of the sensi_func_types.  */
+
 void 
 rap_gather_function_targets ()
 {
@@ -283,7 +299,9 @@ rap_gather_function_targets ()
   return;
 } // end of rap_gather_function_targets
 
+
 /* The wraper of hl_gather pass.  */
+
 static unsigned int
 hl_gather_execute ()
 {
@@ -292,7 +310,9 @@ hl_gather_execute ()
   return 0;
 }
 
+
 /* Will we need the gather?  */
+
 static bool
 hl_gather_gate ()
 {
@@ -301,6 +321,7 @@ hl_gather_gate ()
 
   return false;
 }
+
 
 /* Genetate the pass structure */
 #define PASS_NAME hl_gather
@@ -312,8 +333,10 @@ hl_gather_gate ()
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
+
 /* Entry point of the oracle, look up current function weather or not beed
    gathered into our target function set. If YES return 1 otherwise return 0 */
+
 int 
 is_rap_function_maybe_roped (tree f)
 {
@@ -328,7 +351,9 @@ is_rap_function_maybe_roped (tree f)
     return bitmap_bit_p (sensi_funcs, DECL_UID (f));
 }
 
+
 /* Write some statistics for our algorithm */
+
 void
 dump_rap_opt_statistics ()
 {
@@ -338,7 +363,9 @@ dump_rap_opt_statistics ()
   return;
 }
 
+
 /* Clean and cloese function for optimizations */
+
 void
 rap_optimization_clean ()
 {
@@ -349,6 +376,7 @@ rap_optimization_clean ()
 
   return;
 }
+
 
 /* Type definition for hash value maps. */
 struct cfi_function_hash_maps_t
@@ -377,8 +405,10 @@ struct cfi_key_value_t
    rap_hash_value_type val;
  };
 
+
 /* Hook fed to pointer_map_traverse, type compatiablity test. 
    If find return TRUE, otherwise FALSE. */
+
 bool
 pointer_map_access (const void *key, void **val, void *type)
 {
@@ -398,8 +428,10 @@ pointer_map_access (const void *key, void **val, void *type)
   return true;
 }
 
+
 /* Search the [function type : hash value] table, if not have compatiable 
    type match, create one and insert into the table. */
+
 static rap_hash_value_type
 find_or_create_cfi_hash_val (tree type)
 {
@@ -439,6 +471,7 @@ create:
 
 #define BUILD_SOURCE_HASH_TREE 1
 #define BUILD_TARGET_HASH_TREE 2
+
 
 /* Build cfi hash tree, target or source depend on the argument.
    ??? should we reuse the tree node. */
@@ -515,7 +548,9 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 // linux kernel function.
 //extern void panic (const char *fmt, ...);
 
+
 /* Help function called when the fe-cfi violate catched. */
+
 static basic_block
 cfi_catch_and_trap_bb (gimple cs, basic_block after)
 {
@@ -562,6 +597,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   return bb;
 }
 
+
 /* Insert branch and create two blcok contain original function call and our
    catch code. And also need complete the control flow graph.
      +-------
@@ -582,6 +618,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
 
    The value of argument s_ is a const integer tree, 
    t_ is a MEM-REF, may need insert temp varibale as lhs_1 get the value. */
+
 static void
 insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp, 
 		               tree s_, 
@@ -678,6 +715,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 /* Build the check statement: 
    if ((int *)(cs->target_function - sizeof(rap_hash_value_type)) != hash) 
      catch () */
+
 static void
 build_cfi (gimple_stmt_iterator *gp)
 {
@@ -706,8 +744,10 @@ build_cfi (gimple_stmt_iterator *gp)
   return;
 }
 
+
 /// cgraph_local_node_p
 /* This new pass will be added after the GCC pass ipa "pta". */
+
 static unsigned int
 hl_cfi_execute ()
 {
@@ -766,7 +806,9 @@ hl_cfi_execute ()
   return 0;
 }
 
+
 /* Will need replace the forward cfi? */
+
 static bool
 hl_cfi_gate ()
 {
@@ -775,6 +817,7 @@ hl_cfi_gate ()
 
   return false;
 }
+
 
 /* Genetate the pass structure */
 #define PASS_NAME hl_cfi
