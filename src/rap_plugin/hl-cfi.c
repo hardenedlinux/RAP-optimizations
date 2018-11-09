@@ -541,8 +541,9 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
   gcc_unreachable ();
 }
 
-// linux kernel function.
-//extern void panic (const char *fmt, ...);
+
+/* Probability of the catch branch is taken.  */
+#define ERR_PROB 0.01
 
 
 /* Help function called when the fe-cfi violate catched. */
@@ -628,6 +629,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   basic_block old_bb;
   basic_block catch_bb;
   edge edge_false;
+  edge edge_true;
   tree lhs;       // temp variable suit for direct ssa name.
   tree lhs_1;
 
@@ -702,7 +704,10 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       if (old_bb->loop_father->latch == old_bb)
         old_bb->loop_father->latch = catch_bb;
     }
-  make_single_succ_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
+  edge_true = make_single_succ_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
+  edge_true->probability = REG_BR_PROB_BASE * ERR_PROB;
+  edge_true->count = 
+      apply_probability (old_bb->count, edge_true->probability);
   /* As we introduced new control-flow we need to insert phi nodes
      for the new blocks.  */
   mark_virtual_operands_for_renaming (cfun);
