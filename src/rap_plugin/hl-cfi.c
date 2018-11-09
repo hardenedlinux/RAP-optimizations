@@ -93,9 +93,9 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
   if (will_call_ipa_pta)
     return;
   
-  /* Notice, There is a EXTRA item definition: x_flag_emit_templates 
-     in /usr/lib/gcc/x86_64-linux-gnu/4.8/plugin/include/options.h
-     But when we build the gcc whose code download from gnu.gcc.org haven't
+  /* !!!NOTICE, There is a EXTRA item definition: x_flag_emit_templates 
+     in Ubuntu official package gcc-plugin-dev ../4.8/plugin/include/options.h.
+     But when we build the gcc the code download from gnu.gcc.org haven't
      this item, so when you access the item after x_flag_dump_rtl_in_asm in 
      the struct global_options, you are fucked.  
      I really thought this is a gcc bug, when i dig into the g++ parser
@@ -327,9 +327,10 @@ hl_gather_gate ()
 #define PASS_NAME hl_gather
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
-#define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
-	TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
-	TODO_rebuild_cgraph_edges | TODO_verify_flow
+#define TODO_FLAGS_FINISH \
+	  TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
+	  TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
+	  TODO_rebuild_cgraph_edges | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
@@ -364,12 +365,13 @@ dump_rap_opt_statistics ()
 }
 
 
-/* Clean and cloese function for optimizations */
+/* Clean and cloese function for optimizations.  */
 
 void
 rap_optimization_clean ()
 {
-  /* Now we have finish our job, close file and destroy the GCC allocated data*/
+  /* Now we have finish our job, close file and destroy the GCC allocated 
+     data. */
   fclose (dump_rap_opt_statistics_fd);
   bitmap_clear (sensi_funcs);
   pointer_set_destroy (sensi_func_types);
@@ -400,10 +402,10 @@ static struct cfi_function_hash_maps_t cfi_db;
 
 /* Temp type, used for access cfi_db. */
 struct cfi_key_value_t
- {
-   tree type;
-   rap_hash_value_type val;
- };
+{
+ tree type;
+ rap_hash_value_type val;
+};
 
 
 /* Hook fed to pointer_map_traverse, type compatiablity test. 
@@ -439,19 +441,13 @@ find_or_create_cfi_hash_val (tree type)
   rap_hash_value_type val = 0;
   void **val_address;
 
-  struct key_value
-   {
-     tree type;
-     rap_hash_value_type val;
-   };
-
   gcc_assert (TREE_CODE (type) == FUNCTION_TYPE);
   //struct pointer_map_t *cfi_function_hash_maps;
   if (! cfi_db.map)
     cfi_db.map = pointer_map_create ();
   
   /* Search */
-  struct key_value contain = {type, val};
+  struct cfi_key_value_t contain = {type, val};
   if (0 == cfi_db.total)
     goto create;
   pointer_map_traverse (cfi_db.map, pointer_map_access, (void *)&contain);
@@ -707,6 +703,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
         old_bb->loop_father->latch = catch_bb;
     }
   make_single_succ_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
+  /* As we introduced new control-flow we need to insert phi nodes
+     for the new blocks.  */
+  mark_virtual_operands_for_renaming (cfun);
 
   return;
 }
@@ -823,9 +822,10 @@ hl_cfi_gate ()
 #define PASS_NAME hl_cfi
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
-#define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
-	TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
-	TODO_rebuild_cgraph_edges | TODO_verify_flow
+#define TODO_FLAGS_FINISH \
+	  TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
+	  TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
+	  TODO_rebuild_cgraph_edges | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
