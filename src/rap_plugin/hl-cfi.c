@@ -636,6 +636,8 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   gsi = *gp;
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
+  /* Possible???  */
+  gcc_assert (! stmt_ends_bb_p (cs));
 
   /* First of all, disable the dom info, for effecicent and simplity */
   if (is_cfi_need_clean_dom_info && ! is_cfi_chaned_cfun)
@@ -653,10 +655,11 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* lhs_1 = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   gcc_assert (is_gimple_reg (lhs));
-  lhs_1 = make_ssa_name (lhs, NULL);
-  g = gimple_build_assign (lhs_1, t_);
+  g = gimple_build_assign (lhs, t_);
+  lhs_1 = make_ssa_name (lhs, g);
+  gimple_assign_set_lhs (g, lhs_1);
   // Complete the ssa define statement.
-  SSA_NAME_DEF_STMT (lhs_1) = g;
+  //SSA_NAME_DEF_STMT (lhs_1) = g;
   gimple_set_block (g, gimple_block (cs));
   gsi_insert_before (&gsi, g, GSI_SAME_STMT);
   // if (lhs_1 != s_) goto cfi_catch else goto call
