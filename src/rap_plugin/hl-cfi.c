@@ -711,6 +711,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   edge_true->probability = REG_BR_PROB_BASE * ERR_PROB;
   edge_true->count = 
       apply_probability (old_bb->count, edge_true->probability);
+  // 
+  edge_false->probability = inverse_probability (edge_true->probability);
+  edge_true->count = old_bb->count - edge_true->count;
   /* As we introduced new control-flow we need to insert phi nodes
      for the new blocks.  */
   mark_virtual_operands_for_renaming (cfun);
@@ -759,6 +762,7 @@ static unsigned int
 hl_cfi_execute ()
 {
   struct cgraph_node *node;
+  bool changed = false;
   
   /* If we are in lto mode, execute this pass in the ltrans. */
   if (flag_lto && ! flag_ltrans)
@@ -814,15 +818,10 @@ hl_cfi_execute ()
 }
 
 
-/* Will need replace the forward cfi? */
-
 static bool
 hl_cfi_gate ()
 {
-  if (require_call_hl_cfi)
-    return true;
-
-  return false;
+  return require_call_hl_cfi;
 }
 
 
