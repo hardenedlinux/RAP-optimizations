@@ -16,6 +16,7 @@
 #include "tree-pass.h"
 #include "diagnostic.h"
 #include "bitmap.h"
+#include "gimple-pretty-print.h"
 
 
 /* There are many optimization methrod can do for RAP.
@@ -40,8 +41,8 @@ int cfi_gcc_optimize_level;
 int rap_opt_statistics_data;
 /* Contain the statistics data, maybe gcc will called many times, we need output
    data in the same file, for the conventices of scripts process. */
-const char *dump_rap_opt_statistics_filename = "rap_opt_statistics_dump";
-FILE *dump_rap_opt_statistics_fd;
+//const char *dump_rap_opt_statistics_filename = "rap_opt_statistics_dump";
+//FILE *dump_rap_opt_statistics_fd;
 
 /* Contain all the sensitive functions which maybe the targets of ROP.
    so all of these functons should compute and output the function hash. */
@@ -54,8 +55,8 @@ static bool will_call_ipa_pta;
 typedef int rap_hash_value_type;
 /* Used for disable dom info, because dom info is function based, 
    when cfun changed set this falg.  */
-static bool is_cfi_chaned_cfun;
-static bool is_cfi_need_clean_dom_info;
+//static bool is_cfi_chaned_cfun;
+//static bool is_cfi_need_clean_dom_info;
 
 // gcc internal defined pass name.
 extern struct ipa_opt_pass_d pass_ipa_inline;
@@ -73,8 +74,10 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
       /*(! strcmp ((current_pass)->name, "inline")))*/
     {
       if (*(bool*)gcc_data)
-	fprintf(dump_rap_opt_statistics_fd, "[+] NOT call pass 'inline'\n");
+        if (dump_file && (dump_flags & TDF_DETAILS))
+	  fprintf(dump_file, "hl-cfi -  NOT call pass 'inline'\n");
     }
+
   return;
 }
 
@@ -352,7 +355,7 @@ is_rap_function_maybe_roped (tree f)
     return bitmap_bit_p (sensi_funcs, DECL_UID (f));
 }
 
-
+#if 0
 /* Write some statistics for our algorithm */
 
 void
@@ -363,7 +366,7 @@ dump_rap_opt_statistics ()
 
   return;
 }
-
+#endif
 
 /* Clean and cloese function for optimizations.  */
 
@@ -372,7 +375,7 @@ rap_optimization_clean ()
 {
   /* Now we have finish our job, close file and destroy the GCC allocated 
      data. */
-  fclose (dump_rap_opt_statistics_fd);
+  //fclose (dump_rap_opt_statistics_fd);
   bitmap_clear (sensi_funcs);
   pointer_set_destroy (sensi_func_types);
 
@@ -588,6 +591,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   update_stmt_if_modified (g);
   //update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
+  gimple_set_bb (g, bb);
   gimple_set_location (g, gimple_location (cs));
   gimple_set_block (g, gimple_block (cs));
   
@@ -639,6 +643,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* Possible???  */
   gcc_assert (! stmt_ends_bb_p (cs));
 
+#if 0
   /* First of all, disable the dom info, for effecicent and simplity */
   if (is_cfi_need_clean_dom_info && ! is_cfi_chaned_cfun)
     {
@@ -650,6 +655,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       //set_dom_info_availability (CDI_POST_DOMINATORS, DOM_NONE);
       is_cfi_need_clean_dom_info = false;
     }
+#endif
 
   /* Insert gimples. */
   /* lhs_1 = t_ */
@@ -716,7 +722,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   edge_true->count = old_bb->count - edge_true->count;
   /* As we introduced new control-flow we need to insert phi nodes
      for the new blocks.  */
-  mark_virtual_operands_for_renaming (cfun);
+  //mark_virtual_operands_for_renaming (cfun);
 
   return;
 }
@@ -762,11 +768,11 @@ static unsigned int
 hl_cfi_execute ()
 {
   struct cgraph_node *node;
-  bool changed = false;
+  bool is_status_changed = false;
   
   /* If we are in lto mode, execute this pass in the ltrans. */
   if (flag_lto && ! flag_ltrans)
-    return 1;
+    return 0;
   
   FOR_EACH_DEFINED_FUNCTION (node)
     {
@@ -782,12 +788,10 @@ hl_cfi_execute ()
       /* If insert blocks is inside a loop.  */
       loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
   
-      is_cfi_need_clean_dom_info = true;
-      
       FOR_EACH_BB_FN (bb, func)
 	{
 	  gimple_stmt_iterator gsi;
-	  is_cfi_chaned_cfun = false;
+	  //is_cfi_chaned_cfun = false;
 
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	    {
@@ -801,18 +805,28 @@ hl_cfi_execute ()
 	      /* Indirect calls */
 	      if (NULL == gimple_call_fndecl (cs))
 	        {
-		  //decl = gimple_call_fn (cs);
-		  //hash = find_cfi_hash_tree (decl);
-		  //gcc_assert (hash);
-		  is_cfi_need_clean_dom_info = true;
+		  /* Must have will been inserted guard code. */
+		  is_status_changed |= true;
+                  /* First of all, disable the dom info, for effecicent and simplity */
+                  free_dominance_info (CDI_DOMINATORS);
+                  free_dominance_info (CDI_POST_DOMINATORS);
 		  build_cfi (&gsi);
 	        }
 	    }
 	}
       
       loop_optimizer_finalize ();
+
+      /* As we introduced new control-flow we need to insert phi nodes
+         for the new blocks.  */
+      if (is_status_changed)
+        mark_virtual_operands_for_renaming (cfun);
+
       pop_cfun ();
     }
+
+  if (is_status_changed)
+    return TODO_update_ssa;
 
   return 0;
 }
@@ -830,9 +844,9 @@ hl_cfi_gate ()
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH \
-	  TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
-	  TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
-	  TODO_rebuild_cgraph_edges | TODO_verify_flow
+	  TODO_verify_ssa | TODO_verify_stmts | TODO_verify_flow | \
+	  TODO_dump_func | TODO_remove_unused_locals | TODO_cleanup_cfg | \
+	  TODO_rebuild_cgraph_edges
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
