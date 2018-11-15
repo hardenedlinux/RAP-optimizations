@@ -546,7 +546,7 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 
 
 /* Probability of the catch branch is taken.  */
-#define ERR_PROB 0.01
+#define ERR_PROB 0.001
 
 
 /* Help function called when the fe-cfi violate catched. */
@@ -588,6 +588,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   bb = create_basic_block (seq, NULL, after);
   /* For update ssa.  */
   gcc_assert (cfun->gimple_df && gimple_ssa_operands (cfun)->ops_active);
+  // Need mark update???
   update_stmt_if_modified (g);
   //update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
@@ -628,6 +629,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 {
   gimple cs, g;
   gimple_stmt_iterator gsi;
+  gimple assign   // used for dumps.
   gimple cond;    // test gimple we insert.
   gimple call;    // call label gimple we insert.
   basic_block old_bb;
@@ -661,7 +663,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* lhs_1 = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   gcc_assert (is_gimple_reg (lhs));
-  g = gimple_build_assign (lhs, t_);
+  assign = g = gimple_build_assign (lhs, t_);
   lhs_1 = make_ssa_name (lhs, g);
   gimple_assign_set_lhs (g, lhs_1);
   // Complete the ssa define statement.
@@ -723,6 +725,17 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* As we introduced new control-flow we need to insert phi nodes
      for the new blocks.  */
   //mark_virtual_operands_for_renaming (cfun);
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    {
+      fprintf (dump_file, "Found protected indirect call: ");
+      print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
+      fprintf (dump_file, "Indirect call gadget will become: ");
+      print_gimple_stmt (dump_file, assign, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, cond, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, catch_bb->il.gimple.seq, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
+      fprintf (dump_file, "\n");
+    }
 
   return;
 }
