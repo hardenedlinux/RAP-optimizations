@@ -582,6 +582,8 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
 #endif  
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
   seq = g = gimple_build_call (trap, 0);
+  // Guard test.
+  gcc_assert (stmt_ends_bb_p (g));
   /* Set the limits on seq.  */
   g->gsbase.prev = g;
   g->gsbase.next = NULL;
@@ -596,6 +598,11 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   gimple_set_location (g, gimple_location (cs));
   gimple_set_block (g, gimple_block (cs));
   
+  /* Interesting! after deep into gcc source code, I known we donn't need 
+     link this BB as the predecessor of EXIT. Espencially the successor of
+     BB is empty.  */
+  //make_edge (bb, EXIT_BLOCK_PTR, 0);
+
   return bb;
 }
 
