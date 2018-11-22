@@ -591,7 +591,7 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   /* For update ssa.  */
   gcc_assert (cfun->gimple_df && gimple_ssa_operands (cfun)->ops_active);
   // Need mark update???
-  update_stmt_if_modified (g);
+  //update_stmt_if_modified (g);
   //update_modified_stmt (g);
   //gsi_insert_after (&gsi, g, GSI_SAME_STMT);
   gimple_set_bb (g, bb);
@@ -636,7 +636,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 {
   gimple cs, g;
   gimple_stmt_iterator gsi;
-  gimple assign   // used for dumps.
+  //gimple assign   // used for dumps.
   gimple cond;    // test gimple we insert.
   gimple call;    // call label gimple we insert.
   basic_block old_bb;
@@ -650,7 +650,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
   /* Possible???  */
-  gcc_assert (! stmt_ends_bb_p (cs));
+  //gcc_assert (! stmt_ends_bb_p (cs));
 
 #if 0
   /* First of all, disable the dom info, for effecicent and simplity */
@@ -670,7 +670,8 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* lhs_1 = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   gcc_assert (is_gimple_reg (lhs));
-  assign = g = gimple_build_assign (lhs, t_);
+  //assign = 
+  g = gimple_build_assign (lhs, t_);
   lhs_1 = make_ssa_name (lhs, g);
   gimple_assign_set_lhs (g, lhs_1);
   // Complete the ssa define statement.
@@ -736,11 +737,11 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
     {
       fprintf (dump_file, "Found protected indirect call: ");
       print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
-      fprintf (dump_file, "Indirect call gadget will become: ");
-      print_gimple_stmt (dump_file, assign, 0, TDF_SLIM);
-      print_gimple_stmt (dump_file, cond, 0, TDF_SLIM);
-      print_gimple_stmt (dump_file, catch_bb->il.gimple.seq, 0, TDF_SLIM);
-      print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
+      //fprintf (dump_file, "Indirect call gadget will become: ");
+      //print_gimple_stmt (dump_file, assign, 0, TDF_SLIM);
+      //print_gimple_stmt (dump_file, cond, 0, TDF_SLIM);
+      //print_gimple_stmt (dump_file, catch_bb->il.gimple.seq, 0, TDF_SLIM);
+      //print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
       fprintf (dump_file, "\n");
     }
 
@@ -869,4 +870,3 @@ hl_cfi_gate ()
 	  TODO_rebuild_cgraph_edges
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
-

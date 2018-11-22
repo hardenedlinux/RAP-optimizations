@@ -40,3 +40,19 @@ test_bin:
 #	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
 	      ../../testcase/cfi1.c ../../testcase/cfi2.c
 
+.PHONY: test_asm_dump
+test_asm_dump:
+	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
+	      -fplugin-arg-rap_plugin-opt -fplugin-arg-rap_plugin-hl_cfi \
+	      -fdump-ipa-hl_cfi-all -S\
+	      ../../testcase/cfi1.c ../../testcase/cfi2.c
+#	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
+	      ../../testcase/cfi1.c ../../testcase/cfi2.c
+.PHONY: test_bin_dump
+test_bin_dump:
+	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
+	      -fplugin-arg-rap_plugin-opt -fplugin-arg-rap_plugin-hl_cfi \
+	      -fdump-ipa-hl_cfi-all\
+	      ../../testcase/cfi1.c ../../testcase/cfi2.c
+#	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
+
