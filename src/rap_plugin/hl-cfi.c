@@ -782,6 +782,30 @@ build_cfi (gimple_stmt_iterator *gp)
 }
 
 
+/* Wrap up gcc internal dump functions ignore conditions.
+   ???cc1 could not recongnize the hl_cfi dump command line options. */
+void 
+hijack_gcc_pass_init_dump_file ()
+{
+  // make sure we have been initialized.
+  gcc_assert (current_pass->static_pass_number != -1);
+
+  struct dump_file_info *dfi 
+	  = get_dump_file_info (current_pass->static_pass_number);
+  gcc_assert (dfi);
+
+  if (dfi->pstate == 0)
+    dfi->pstate = 1;
+  dump_file_name = get_dump_file_name (current_pass->static_pass_number);
+  dump_start (current_pass->static_pass_number, &dump_flags);
+
+  gcc_assert (dump_file);
+  if (dump_file && current_function_decl)
+    dump_function_header (dump_file, current_function_decl, dump_flags);
+
+  return;
+}
+
 /// cgraph_local_node_p
 /* This new pass will be added after the GCC pass ipa "pta". */
 
@@ -845,6 +869,9 @@ hl_cfi_execute ()
 
       pop_cfun ();
     }
+
+  //
+  hijack_gcc_pass_init_dump_file ();
 
   if (is_status_changed)
     return TODO_update_ssa;
