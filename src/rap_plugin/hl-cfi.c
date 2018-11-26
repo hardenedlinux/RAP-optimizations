@@ -795,7 +795,11 @@ hijack_gcc_pass_init_dump_file ()
   gcc_assert (dfi);
 
   if (dfi->pstate == 0)
-    dfi->pstate = 1;
+    {
+      dfi->pstate = 1;
+      dfi->optgroup_flags = OPTGROUP_IPA;
+      dfi->pflags = TDF_RAW | TDF_IPA;
+    }
   dump_file_name = get_dump_file_name (current_pass->static_pass_number);
   dump_start (current_pass->static_pass_number, &dump_flags);
 
