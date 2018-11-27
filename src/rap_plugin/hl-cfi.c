@@ -634,9 +634,10 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
 			       tree t_, 
 			       tree t_t)
 {
-  gimple cs, g;
+  const gimple cs = gsi_stmt (*gp);
+  gimple g;
   gimple_stmt_iterator gsi;
-  //gimple assign   // used for dumps.
+  gimple assign;  // used for dumps.
   gimple cond;    // test gimple we insert.
   gimple call;    // call label gimple we insert.
   basic_block old_bb;
@@ -647,7 +648,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   tree lhs_1;
 
   gsi = *gp;
-  cs = gsi_stmt (gsi);
+  //cs = gsi_stmt (gsi);
   gcc_assert (is_gimple_call (cs));
   /* Possible???  */
   //gcc_assert (! stmt_ends_bb_p (cs));
@@ -670,8 +671,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* lhs_1 = t_ */
   lhs = create_tmp_var (t_t, "hl_cfi_hash");
   gcc_assert (is_gimple_reg (lhs));
-  //assign = 
-  g = gimple_build_assign (lhs, t_);
+  assign = g = gimple_build_assign (lhs, t_);
   lhs_1 = make_ssa_name (lhs, g);
   gimple_assign_set_lhs (g, lhs_1);
   // Complete the ssa define statement.
@@ -705,7 +705,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* Get the original bb, Thers is only one. 
      For now the basic block is clean.  */
   old_bb = gimple_bb (cs);
-  edge_false = split_block (old_bb, cs);
+  edge_false = split_block (old_bb, cond);
   gcc_assert (edge_false->flags == EDGE_FALLTHRU);
   edge_false->flags &= ~EDGE_FALLTHRU;
   edge_false->flags |= EDGE_FALSE_VALUE;
@@ -723,7 +723,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       if (old_bb->loop_father->latch == old_bb)
         old_bb->loop_father->latch = catch_bb;
     }
-  edge_true = make_single_succ_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
+  edge_true = make_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
   edge_true->probability = REG_BR_PROB_BASE * ERR_PROB;
   edge_true->count = 
       apply_probability (old_bb->count, edge_true->probability);
@@ -737,11 +737,11 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
     {
       fprintf (dump_file, "Found protected indirect call: ");
       print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
-      //fprintf (dump_file, "Indirect call gadget will become: ");
-      //print_gimple_stmt (dump_file, assign, 0, TDF_SLIM);
-      //print_gimple_stmt (dump_file, cond, 0, TDF_SLIM);
-      //print_gimple_stmt (dump_file, catch_bb->il.gimple.seq, 0, TDF_SLIM);
-      //print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
+      fprintf (dump_file, "Indirect call gadget will become: ");
+      print_gimple_stmt (dump_file, assign, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, cond, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, catch_bb->il.gimple.seq, 0, TDF_SLIM);
+      print_gimple_stmt (dump_file, cs, 0, TDF_SLIM);
       fprintf (dump_file, "\n");
     }
 
@@ -784,7 +784,8 @@ build_cfi (gimple_stmt_iterator *gp)
 
 /* Wrap up gcc internal dump functions ignore conditions.
    ???cc1 could not recongnize the hl_cfi dump command line options. */
-void 
+
+static void
 hijack_gcc_pass_init_dump_file ()
 {
   // make sure we have been initialized.

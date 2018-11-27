@@ -1,0 +1,135 @@
+Incremental SSA update started at block: 0
+Number of blocks in CFG: 15
+Number of blocks to update: 14 ( 93%)
+
+
+main ()
+{
+  long int hl_cfi_hash.7;
+  long int hl_cfi_hash.6;
+  long int hl_cfi_hash.5;
+  long int hl_cfi_hash.4;
+  static const char __PRETTY_FUNCTION__[5] = "main";
+  int (*<T561>) (double) lp[2];
+  int r2;
+  int r1;
+  int l2;
+  int l1;
+  int D.2229;
+  int D.2225;
+  double D.2224;
+  int (*<T561>) (double) D.2223;
+  int D.2222;
+  double D.2221;
+  int g2.3;
+  int (*<T561>) (double) D.2219;
+  int (*<T561>) (double) D.2218;
+  int D.2217;
+  double D.2216;
+  int (*<T561>) (double) D.2215;
+  int D.2214;
+  double D.2213;
+  int g1.2;
+  int (*<T561>) (double) D.2211;
+  int (*<T561>) (double) D.2210;
+  int l2.1;
+  int l1.0;
+  int (*<T561>) (double) _7;
+  int (*<T561>) (double) _8;
+  double _10;
+  int _11;
+  int (*<T561>) (double) _13;
+  double _14;
+  int _15;
+  int (*<T561>) (double) _17;
+  int (*<T561>) (double) _18;
+  double _20;
+  int _21;
+  int (*<T561>) (double) _23;
+  double _24;
+  int _25;
+  int _27;
+
+  <bb 2>:
+  gimple_assign <integer_cst, l1.0_1, 1, NULL, NULL>
+  gimple_assign <ssa_name, g1, l1.0_1, NULL, NULL>
+  gimple_assign <ssa_name, l1_2, l1.0_1, NULL, NULL>
+  gimple_assign <integer_cst, l2.1_3, 2, NULL, NULL>
+  gimple_assign <ssa_name, g2, l2.1_3, NULL, NULL>
+  gimple_assign <ssa_name, l2_4, l2.1_3, NULL, NULL>
+  gimple_assign <integer_cst, r2_5, 10, NULL, NULL>
+  gimple_assign <ssa_name, r1_6, r2_5, NULL, NULL>
+  gimple_assign <addr_expr, lp[0], foo, NULL, NULL>
+  gimple_assign <array_ref, _7, lp[0], NULL, NULL>
+  gimple_assign <ssa_name, gp[0], _7, NULL, NULL>
+  gimple_assign <array_ref, _8, gp[0], NULL, NULL>
+  gimple_assign <var_decl, g1.2_9, g1, NULL, NULL>
+  gimple_assign <float_expr, _10, g1.2_9, NULL, NULL>
+  gimple_assign <mem_ref, hl_cfi_hash.4_28, MEM[(int *)_8 + -8B], NULL, NULL>
+  gimple_cond <ne_expr, hl_cfi_hash.4_28, 2130853107, NULL, NULL>
+  gimple_call <_8, _11, _10>
+
+  <bb 3>:
+  gimple_assign <plus_expr, r1_12, _11, r1_6, NULL>
+  gimple_assign <array_ref, _13, lp[0], NULL, NULL>
+  gimple_assign <float_expr, _14, l1_2, NULL, NULL>
+  gimple_assign <mem_ref, hl_cfi_hash.5_29, MEM[(int *)_13 + -8B], NULL, NULL>
+  gimple_cond <ne_expr, hl_cfi_hash.5_29, 2130853107, NULL, NULL>
+  gimple_call <_13, _15, _14>
+
+  <bb 4>:
+  gimple_assign <plus_expr, r2_16, _15, r2_5, NULL>
+  gimple_assign <addr_expr, lp[1], bar, NULL, NULL>
+  gimple_assign <array_ref, _17, lp[1], NULL, NULL>
+  gimple_assign <ssa_name, gp[1], _17, NULL, NULL>
+  gimple_assign <array_ref, _18, gp[1], NULL, NULL>
+  gimple_assign <var_decl, g2.3_19, g2, NULL, NULL>
+  gimple_assign <float_expr, _20, g2.3_19, NULL, NULL>
+  gimple_assign <mem_ref, hl_cfi_hash.6_30, MEM[(int *)_18 + -8B], NULL, NULL>
+  gimple_cond <ne_expr, hl_cfi_hash.6_30, 2130853107, NULL, NULL>
+  gimple_call <_18, _21, _20>
+
+  <bb 5>:
+  gimple_assign <plus_expr, r1_22, _21, r1_12, NULL>
+  gimple_assign <array_ref, _23, lp[1], NULL, NULL>
+  gimple_assign <float_expr, _24, l2_4, NULL, NULL>
+  gimple_assign <mem_ref, hl_cfi_hash.7_31, MEM[(int *)_23 + -8B], NULL, NULL>
+  gimple_cond <ne_expr, hl_cfi_hash.7_31, 2130853107, NULL, NULL>
+  gimple_call <_23, _25, _24>
+
+  <bb 6>:
+  gimple_assign <plus_expr, r2_26, _25, r2_16, NULL>
+  gimple_cond <eq_expr, r1_22, r2_26, NULL, NULL>
+    goto <bb 11>;
+  else
+    goto <bb 12>;
+
+  <bb 7>:
+  gimple_call <__builtin_trap, NULL>
+
+  <bb 8>:
+  gimple_call <__builtin_trap, NULL>
+
+  <bb 9>:
+  gimple_call <__builtin_trap, NULL>
+
+  <bb 10>:
+  gimple_call <__builtin_trap, NULL>
+
+  <bb 11>:
+  gimple_call <__builtin_puts, NULL, &"yes"[0]>
+  goto <bb 13>;
+
+  <bb 12>:
+  gimple_call <__assert_fail, NULL, "! \"error\"", "../../testcase/cfi1.c", 30, &__PRETTY_FUNCTION__>
+
+  <bb 13>:
+  gimple_assign <integer_cst, _27, 0, NULL, NULL>
+  gimple_assign <constructor, lp, {CLOBBER}, NULL, NULL>
+
+gimple_label <<L4>>
+  gimple_return <_27>
+
+}
+
+
