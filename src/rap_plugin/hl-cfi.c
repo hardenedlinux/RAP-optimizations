@@ -49,6 +49,8 @@ int rap_opt_statistics_data;
 static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *sensi_func_types;
+/* Every fucntion has only one catch basic block.  */
+static basic_block the_cfi_catch_bb_for_cfun;
 //
 static bool will_call_ipa_pta;
 /* For compatiable with the original RAP */
@@ -579,7 +581,12 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
 
   /* Initialize iterator.  */
   //gsi = gsi_start (seq);
-#endif  
+#endif
+  /* Already has one.  */
+  if (the_cfi_catch_bb_for_cfun)
+    return the_cfi_catch_bb_for_cfun;
+  
+  /* Create it.  */
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
   seq = g = gimple_build_call (trap, 0);
   // Guard test.
@@ -602,6 +609,8 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
      link this BB as the predecessor of EXIT. Espencially the successor of
      BB is empty.  */
   //make_edge (bb, EXIT_BLOCK_PTR, 0);
+  gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
+  the_cfi_catch_bb_for_cfun = bb;
 
   return bb;
 }
@@ -628,8 +637,8 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
    The value of argument s_ is a const integer tree, 
    t_ is a MEM-REF, may need insert temp varibale as lhs_1 get the value. */
 
-static void
-insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp, 
+static basic_block
+insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *const gp,
 		               tree s_, 
 			       tree t_, 
 			       tree t_t)
@@ -706,7 +715,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
      For now the basic block is clean.  */
   old_bb = gimple_bb (cs);
   edge_false = split_block (old_bb, cond);
-  gcc_assert (edge_false->flags == EDGE_FALLTHRU);
+  gcc_assert (edge_false->flags & EDGE_FALLTHRU);
   edge_false->flags &= ~EDGE_FALLTHRU;
   edge_false->flags |= EDGE_FALSE_VALUE;
   GIMPLE_CHECK (edge_false->dest->il.gimple.seq, GIMPLE_CALL);
@@ -714,7 +723,12 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
   /* Create block after the block contain original call. 
      We can have a toplogical for the blocks created and old. */
   // EDGE_TRUE_VALUE
-  catch_bb = cfi_catch_and_trap_bb (cs, edge_false->dest);
+  gcc_assert (old_bb->prev_bb);
+  /* We will insert new blocks into the block chains. so we need make sure 
+     not insert same and duplicate block again. We known the prev_bb of 
+     current bb have been visited already.  */
+  catch_bb = cfi_catch_and_trap_bb (cs, old_bb);
+  catch_bb->flags |= BB_REACHABLE;
   /* catch_bb must dominated by old the bb contains the indirect call 
      what we insert cfi guard.  */
   if (current_loops != NULL)
@@ -729,7 +743,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       apply_probability (old_bb->count, edge_true->probability);
   // 
   edge_false->probability = inverse_probability (edge_true->probability);
-  edge_true->count = old_bb->count - edge_true->count;
+  edge_false->count = old_bb->count - edge_true->count;
   /* As we introduced new control-flow we need to insert phi nodes
      for the new blocks.  */
   //mark_virtual_operands_for_renaming (cfun);
@@ -745,7 +759,9 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
       fprintf (dump_file, "\n");
     }
 
-  return;
+  /* Return the splited new block which contains the been 
+     protected indirect call.  */
+  return edge_false->dest;
 }
 
 
@@ -754,15 +770,17 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *gp,
      catch () */
 
 static void
-build_cfi (gimple_stmt_iterator *gp)
+build_cfi (gimple_stmt_iterator *labile_gsi_addr, basic_block* labile_bb_addr)
 {
   gimple cs;
   tree th;  // hash get behind the function definitions.
   tree sh;  // hash get before indirect calls.
   tree target_off_type = NULL;
   tree decl;
+  basic_block original_cs_bb;
 
-  cs = gsi_stmt (*gp);
+  cs = gsi_stmt (*labile_gsi_addr);
+  original_cs_bb = gimple_bb (cs);
   gcc_assert (is_gimple_call (cs));
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
@@ -776,7 +794,15 @@ build_cfi (gimple_stmt_iterator *gp)
 
   /* Build the condition expression and insert into the code block, because
      the conditional import new branch, so we also need update the blocks */
-  insert_cond_and_build_ssa_cfg (gp, sh, th, target_off_type);
+  
+  /* Most important, update the labile_bb & libile_gsi.  */
+  *labile_bb_addr 
+   = insert_cond_and_build_ssa_cfg (labile_gsi_addr, sh, th, target_off_type);
+  /* Will change the block of gsi point to.  */
+  gcc_assert (original_cs_bb != gimple_bb (cs));
+  *labile_gsi_addr = gsi_for_stmt(cs);
+  /* Ignore the handled gimple. */
+  gsi_next (labile_gsi_addr);
 
   return;
 }
@@ -827,6 +853,7 @@ hl_cfi_execute ()
   FOR_EACH_DEFINED_FUNCTION (node)
     {
       struct function *func;
+      basic_block labile_bb;
       basic_block bb;
       
       /* Without body not our intent. */
@@ -835,20 +862,30 @@ hl_cfi_execute ()
 
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
+      gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
+
       /* If insert blocks is inside a loop.  */
       loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
-  
-      FOR_EACH_BB_FN (bb, func)
-	{
-	  gimple_stmt_iterator gsi;
-	  //is_cfi_chaned_cfun = false;
 
-	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+      /* When we insert the cfi guard code, will create new blocks, 
+	 and we also must make sure, the labile_bb always point to the current
+	 basic block which is being hanle. We simulate the basic block traverse
+         like usual one, so this means we will change the libile_bb beside into
+         the macro FOR_EACH_BB.  */
+      FOR_EACH_BB (labile_bb)
+	{
+	  gimple_stmt_iterator labile_gsi;
+	  //is_cfi_chaned_cfun = false;
+	  
+          /* Like the libile_bb, we will do same simulate for libile_gsi. */
+	  for (labile_gsi = gsi_start_bb (labile_bb);
+	       !gsi_end_p (labile_gsi);
+	       gsi_next (&labile_gsi))
 	    {
 	      //tree decl;
 	      gimple cs;
 	      //tree hash;
-	      cs = gsi_stmt (gsi);
+	      cs = gsi_stmt (labile_gsi);
 	      /* We are in forward cfi only cares about function call */
 	      if (! is_gimple_call (cs))
 		continue;
@@ -860,8 +897,12 @@ hl_cfi_execute ()
                   /* First of all, disable the dom info, for effecicent and simplity */
                   free_dominance_info (CDI_DOMINATORS);
                   free_dominance_info (CDI_POST_DOMINATORS);
-		  build_cfi (&gsi);
+		  build_cfi (&labile_gsi, &labile_bb);
 	        }
+
+	      /* Every time we insert the cfi guard code, will split the block, 
+		 indirect call will be into the new block.  */
+	      gcc_assert (labile_gsi.bb == labile_bb);
 	    }
 	}
       
@@ -872,6 +913,8 @@ hl_cfi_execute ()
       if (is_status_changed)
         mark_virtual_operands_for_renaming (cfun);
 
+      /* Clean every function data.  */
+      the_cfi_catch_bb_for_cfun = NULL;
       pop_cfun ();
     }
 
