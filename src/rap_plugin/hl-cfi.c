@@ -50,7 +50,7 @@ static bitmap sensi_funcs;
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *sensi_func_types;
 /* Every fucntion has only one catch basic block.  */
-static basic_block the_cfi_catch_bb_for_cfun;
+//static basic_block the_cfi_catch_bb_for_cfun;
 //
 static bool will_call_ipa_pta;
 /* For compatiable with the original RAP */
@@ -62,6 +62,15 @@ typedef int rap_hash_value_type;
 
 // gcc internal defined pass name.
 extern struct ipa_opt_pass_d pass_ipa_inline;
+
+/* Global hook flags.  */
+
+/* Replace original rap forward cfi with hl_cfi? */
+bool require_call_hl_cfi;
+/* Need the rap optimizations? */
+bool require_call_hl_gather;
+/* dump? */
+bool require_hl_cfi_dump;
 
 
 /* Test GCC will call some passes which is benefit. */
@@ -583,8 +592,8 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   //gsi = gsi_start (seq);
 #endif
   /* Already has one.  */
-  if (the_cfi_catch_bb_for_cfun)
-    return the_cfi_catch_bb_for_cfun;
+  //if (the_cfi_catch_bb_for_cfun)
+    //return the_cfi_catch_bb_for_cfun;
   
   /* Create it.  */
   trap = builtin_decl_explicit (BUILT_IN_TRAP);
@@ -604,13 +613,14 @@ cfi_catch_and_trap_bb (gimple cs, basic_block after)
   gimple_set_bb (g, bb);
   gimple_set_location (g, gimple_location (cs));
   gimple_set_block (g, gimple_block (cs));
-  
+  bb->flags |= BB_REACHABLE;
+  bb->discriminator = after->discriminator;
   /* Interesting! after deep into gcc source code, I known we donn't need 
      link this BB as the predecessor of EXIT. Espencially the successor of
      BB is empty.  */
   //make_edge (bb, EXIT_BLOCK_PTR, 0);
-  gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
-  the_cfi_catch_bb_for_cfun = bb;
+  //gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
+  //the_cfi_catch_bb_for_cfun = bb;
 
   return bb;
 }
@@ -723,24 +733,21 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *const gp,
   /* Create block after the block contain original call. 
      We can have a toplogical for the blocks created and old. */
   // EDGE_TRUE_VALUE
-  gcc_assert (old_bb->prev_bb);
-  /* We will insert new blocks into the block chains. so we need make sure 
-     not insert same and duplicate block again. We known the prev_bb of 
-     current bb have been visited already.  */
   catch_bb = cfi_catch_and_trap_bb (cs, old_bb);
-  catch_bb->flags |= BB_REACHABLE;
   /* catch_bb must dominated by old the bb contains the indirect call 
      what we insert cfi guard.  */
   if (current_loops != NULL)
-    {
-      add_bb_to_loop (catch_bb, old_bb->loop_father);
-      if (old_bb->loop_father->latch == old_bb)
-        old_bb->loop_father->latch = catch_bb;
-    }
+    add_bb_to_loop (catch_bb, old_bb->loop_father);
+  /* EDGES. */
   edge_true = make_edge (old_bb, catch_bb, EDGE_TRUE_VALUE);
   edge_true->probability = REG_BR_PROB_BASE * ERR_PROB;
   edge_true->count = 
-      apply_probability (old_bb->count, edge_true->probability);
+   apply_probability (old_bb->count, edge_true->probability);
+  if (old_bb->flags & BB_IRREDUCIBLE_LOOP)
+    {
+      catch_bb->flags |= BB_IRREDUCIBLE_LOOP;
+      edge_true->flags |= EDGE_IRREDUCIBLE_LOOP;
+    }
   // 
   edge_false->probability = inverse_probability (edge_true->probability);
   edge_false->count = old_bb->count - edge_true->count;
@@ -862,7 +869,7 @@ hl_cfi_execute ()
 
       func = DECL_STRUCT_FUNCTION (node->symbol.decl);
       push_cfun (func);
-      gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
+      //gcc_assert (NULL == the_cfi_catch_bb_for_cfun);
 
       /* If insert blocks is inside a loop.  */
       loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
@@ -914,12 +921,13 @@ hl_cfi_execute ()
         mark_virtual_operands_for_renaming (cfun);
 
       /* Clean every function data.  */
-      the_cfi_catch_bb_for_cfun = NULL;
+      //the_cfi_catch_bb_for_cfun = NULL;
       pop_cfun ();
     }
 
   //
-  hijack_gcc_pass_init_dump_file ();
+  if (require_hl_cfi_dump)
+    hijack_gcc_pass_init_dump_file ();
 
   if (is_status_changed)
     return TODO_update_ssa;

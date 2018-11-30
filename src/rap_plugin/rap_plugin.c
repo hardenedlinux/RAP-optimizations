@@ -656,17 +656,22 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			continue;
 		/* Request rap optimizations.  */
 		if (! strcmp(argv[i].key, "opt"))
-		{
-			require_call_hl_gather = true;
-			continue;
-		}
+		  {
+		    require_call_hl_gather = true;
+		    continue;
+		  }
 		/* Request cfi replace.  */
 		if (! strcmp(argv[i].key, "hl_cfi"))
-		{
-			require_call_hl_cfi = true;
-			continue;
-		}
-
+		  {
+		    require_call_hl_cfi = true;
+		    continue;
+		  }
+		/* dumps.  */
+		if (! strcmp(argv[i].key, "hl_cfi_dump"))
+		  {
+		    require_hl_cfi_dump = true;
+		    continue;    
+		  }
 		if (!strcmp(argv[i].key, "typecheck")) {
 			char *values, *value, *saveptr;
 
