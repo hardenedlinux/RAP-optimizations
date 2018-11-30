@@ -343,8 +343,7 @@ hl_gather_gate ()
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH \
 	  TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
-	  TODO_remove_unused_locals | TODO_update_ssa | TODO_cleanup_cfg | \
-	  TODO_rebuild_cgraph_edges | TODO_verify_flow
+	  TODO_remove_unused_locals | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
@@ -734,6 +733,13 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *const gp,
      We can have a toplogical for the blocks created and old. */
   // EDGE_TRUE_VALUE
   catch_bb = cfi_catch_and_trap_bb (cs, old_bb);
+  /* guard test. */
+  /* old_bb <-> catch_bb <-> old-call_bb */
+  gcc_assert (old_bb->next_bb && (old_bb->next_bb == catch_bb));
+  gcc_assert (old_bb->next_bb->next_bb 
+	      && (old_bb->next_bb->next_bb == edge_false->dest));
+  /* After split, gimple-call must be the first gimple in the new block. */
+  gcc_assert (NULL == cs->gsbase.prev->gsbase.next);
   /* catch_bb must dominated by old the bb contains the indirect call 
      what we insert cfi guard.  */
   if (current_loops != NULL)
@@ -806,10 +812,17 @@ build_cfi (gimple_stmt_iterator *labile_gsi_addr, basic_block* labile_bb_addr)
   *labile_bb_addr 
    = insert_cond_and_build_ssa_cfg (labile_gsi_addr, sh, th, target_off_type);
   /* Will change the block of gsi point to.  */
-  gcc_assert (original_cs_bb != gimple_bb (cs));
   *labile_gsi_addr = gsi_for_stmt(cs);
+  
+  /* Guard test. */
+  /* old_bb <-> catch_bb <-> current_call_bb */
+  gcc_assert (original_cs_bb->next_bb);
+  gcc_assert (original_cs_bb->next_bb->next_bb);
+  gcc_assert (original_cs_bb->next_bb->next_bb == gimple_bb (cs));
+  gcc_assert (*labile_bb_addr == gimple_bb (cs));
+
   /* Ignore the handled gimple. */
-  gsi_next (labile_gsi_addr);
+  //gsi_next (labile_gsi_addr);
 
   return;
 }

@@ -44,7 +44,7 @@ test_bin:
 test_asm_dump:
 	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
 	      -fplugin-arg-rap_plugin-opt -fplugin-arg-rap_plugin-hl_cfi \
-	      -fdump-ipa-hl_cfi-all -S\
+	      -fplugin-arg-rap_plugin-hl_cfi_dump -S\
 	      ../../testcase/cfi1.c ../../testcase/cfi2.c
 #	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
 	      ../../testcase/cfi1.c ../../testcase/cfi2.c
@@ -52,7 +52,7 @@ test_asm_dump:
 test_bin_dump:
 	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
 	      -fplugin-arg-rap_plugin-opt -fplugin-arg-rap_plugin-hl_cfi \
-	      -fdump-ipa-hl_cfi-all\
+	      -fplugin-arg-rap_plugin-hl_cfi_dump \
 	      ../../testcase/cfi1.c ../../testcase/cfi2.c
 #	$(CC) -fplugin=./rap_plugin.so -fplugin-arg-rap_plugin-typecheck=call \
 

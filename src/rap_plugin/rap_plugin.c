@@ -43,11 +43,6 @@ const char *rap_abort_call;
 bool enable_type_ret = false;
 bool enable_type_call = false;
 
-/* If this falg set we will replace original rap forward cfi with hl_cfi.  */
-bool require_call_hl_cfi = false;
-/* Flag to indicate need the rap optimizations. */
-bool require_call_hl_gather = false;
-
 // create the equivalent of
 // asm volatile("" : : : "memory");
 // or
