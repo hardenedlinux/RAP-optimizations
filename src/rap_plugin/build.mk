@@ -9,7 +9,8 @@ CFLAGS = -g3 -O0 -std=gnu++98 -ggdb -fvisibility=hidden -fno-rtti \
 	  -fno-exceptions -fPIC -c
 HEADER = -I`$(CC) -print-file-name=plugin`/include \
 	 -I`$(CC) -print-file-name=plugin`/include/c-family \
-	 -I..
+	 -I.. 
+#	 -I/usr/include/c++/7.3.0 -I/usr/include/x86_64-linux-gnu/c++/7
 #HEADER = -I/usr/lib/gcc/x86_64-linux-gnu/4.8/plugin/include \
 	  -I../../gcc-plugins
 RAP = rap_plugin.so # target lib

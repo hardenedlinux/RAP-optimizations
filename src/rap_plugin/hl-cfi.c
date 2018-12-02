@@ -18,6 +18,12 @@
 #include "bitmap.h"
 #include "gimple-pretty-print.h"
 
+#if BUILDING_GCC_VERSION < 7000
+#include "pointer-set.h"
+#else
+#include "hash-set.h"
+#include "hash-map.h"
+#endif
 
 /* There are many optimization methrod can do for RAP.
    From simple to complex and aside with the gcc internal work stage.
@@ -47,8 +53,18 @@ int rap_opt_statistics_data;
 /* Contain all the sensitive functions which maybe the targets of ROP.
    so all of these functons should compute and output the function hash. */
 static bitmap sensi_funcs;
+
+#if BUILDING_GCC_VERSION < 7000
+
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *sensi_func_types;
+#else
+
+/* gcc has change the struct gimple base type.!!!  */
+#define gimple gimple*
+static hash_set<tree> *sensi_func_types;
+#endif
+
 /* Every fucntion has only one catch basic block.  */
 //static basic_block the_cfi_catch_bb_for_cfun;
 //
@@ -342,8 +358,7 @@ hl_gather_gate ()
 //#define PROPERTIES_REQUIRED PROP_gimple_any
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH \
-	  TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | \
-	  TODO_remove_unused_locals | TODO_verify_flow
+	  TODO_verify_ssa | TODO_verify_stmts | TODO_verify_flow
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME
 
@@ -356,6 +371,8 @@ is_rap_function_maybe_roped (tree f)
 {
   if (! is_rap_function_may_be_aliased (f))
     return 0;
+  //  for test.
+  return 1;
   /* Ask the oracle for help */
   if (0 == cfi_gcc_optimize_level)
     /* Function is_rap_function_may_be_aliased() must be failed we arive here, 
@@ -962,7 +979,6 @@ hl_cfi_gate ()
 //#define PROPERTIES_PROVIDED PROP_gimple_lcf
 #define TODO_FLAGS_FINISH \
 	  TODO_verify_ssa | TODO_verify_stmts | TODO_verify_flow | \
-	  TODO_dump_func | TODO_remove_unused_locals | TODO_cleanup_cfg | \
-	  TODO_rebuild_cgraph_edges
+	  TODO_cleanup_cfg | TODO_rebuild_cgraph_edges
 #include "gcc-generate-simple_ipa-pass.h"
 #undef PASS_NAME

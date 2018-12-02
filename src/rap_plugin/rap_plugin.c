@@ -202,7 +202,7 @@ static void rap_begin_function(tree decl)
 
 	/* We do not have any risk, we do not need the hash key before the function. */
 	if (0 == imprecise_rap_hash.hash 
-	     && 
+	     || 
 	     ! is_rap_function_maybe_roped (decl)) {
 		return;
 	}
@@ -546,13 +546,13 @@ static bool rap_version_check(struct plugin_gcc_version *gcc_version, struct plu
 {
 	if (!gcc_version || !plugin_version)
 		return false;
-#if 0
 #if BUILDING_GCC_VERSION >= 5000
 	if (strncmp(gcc_version->basever, plugin_version->basever, 4))
 #else
 	if (strcmp(gcc_version->basever, plugin_version->basever))
 #endif
 		return false;
+#if 0
 	if (strcmp(gcc_version->datestamp, plugin_version->datestamp))
 		return false;
 	if (strcmp(gcc_version->devphase, plugin_version->devphase))
@@ -808,9 +808,13 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 
 		if (!enable_type_ret)
 			rap_fptr_pass_info.reference_pass_name = "optimized";
-		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_gather_pass_info);
-		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_cfi_pass_info);
-		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &rap_fptr_pass_info);
+		if (require_call_hl_gather)
+		  register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_gather_pass_info);
+		// 
+		if (require_call_hl_cfi)
+		  register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &hl_cfi_pass_info);
+		else
+		  register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &rap_fptr_pass_info);
 	}
 
 	return 0;
