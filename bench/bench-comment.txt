@@ -1,0 +1,9 @@
+
+-因为不论是PAX_RAP还是hl-cfi都是针对linux kernel而设计的，所以这两个plugin挂在
+ gcc上测试bench很多测试程序不能运行，hash计算就assert过了只能是function_type的
+ tree.
+
+-对比的具体过程是只是采用了PAX_RAP的call检测，也就是forward cfi，而hl-cfi只有
+ forward cfi所以检测结果应该是可以作为一个性能比较参考的。
+
+-intspeed的结果和fpspeed的结果差不多。

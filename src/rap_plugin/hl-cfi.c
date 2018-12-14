@@ -814,8 +814,14 @@ build_cfi (gimple_stmt_iterator *labile_gsi_addr, basic_block* labile_bb_addr)
   gcc_assert (is_gimple_call (cs));
   decl = gimple_call_fn (cs);
   /* We must be indirect call */
-  gcc_assert (TREE_CODE (decl) == SSA_NAME);
-  gcc_assert (TREE_TYPE (TREE_TYPE (decl)) == cs->gimple_call.u.fntype);
+  /* If wwe set this assert ,will cause a kenerl compile internal bug.
+     it's looks like a compiler bug, because gcc will generate a 
+     gimple_call(int_cst(0)) gimple code.  */
+  //gcc_assert (TREE_CODE (decl) == SSA_NAME);
+  if (tree_code (decl) != ssa_name)
+    return;
+  gcc_assert (types_compatible_p (tree_type (tree_type (decl)), 
+			         cs->gimple_call.u.fntype));
   
   /* build source hash tree */
   sh = build_cfi_hash_tree (cs, BUILD_SOURCE_HASH_TREE, NULL);
