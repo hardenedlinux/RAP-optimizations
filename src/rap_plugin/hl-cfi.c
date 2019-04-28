@@ -55,11 +55,9 @@ int rap_opt_statistics_data;
 static bitmap sensi_funcs;
 
 #if BUILDING_GCC_VERSION < 7000
-
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *sensi_func_types;
 #else
-
 /* gcc has change the struct gimple base type.!!!  */
 #define gimple gimple*
 static hash_set<tree> *sensi_func_types;
@@ -76,8 +74,12 @@ typedef int rap_hash_value_type;
 //static bool is_cfi_chaned_cfun;
 //static bool is_cfi_need_clean_dom_info;
 
+#if BUILDING_GCC_VERSION < 7000
 // gcc internal defined pass name.
 extern struct ipa_opt_pass_d pass_ipa_inline;
+#else
+extern opt_pass *pass_ipa_inline_1;
+#endif
 
 /* Global hook flags.  */
 
@@ -97,7 +99,12 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   //gcc_assert (current_pass);
   if (current_pass 
       && 
-     (void *)current_pass == (void *)&pass_ipa_inline)
+#if BUILDING_GCC_VERSION < 7000
+      (void *)current_pass == (void *)&pass_ipa_inline
+#else
+      (void *)current_pass == (void *)pass_ipa_inline_1
+#endif
+     )
       /*(! strcmp ((current_pass)->name, "inline")))*/
     {
       if (*(bool*)gcc_data)
@@ -108,10 +115,14 @@ rap_check_will_call_passes (void* gcc_data, void* user_data)
   return;
 }
 
+#if BUILDING_GCC_VERSION < 7000 
 // gcc internal defined pass name.
-extern struct simple_ipa_opt_pass pass_ipa_pta;
-extern struct gcc_options global_options;
+extern struct simple_ipa_opt_pass *ipa_pta_ = &pass_ipa_pta;
+#else
+extern struct simple_ipa_opt_pass *ipa_pta_ = pass_ipa_pta_1;
+#endif
 
+extern struct gcc_options global_options;
 
 /* Try make GCC call ipa-pta pass if optimization level is NOT 0 */
 
@@ -132,7 +143,7 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
      after two days. I found this above.  */
   if (optimize &&
       (0 == errorcount + sorrycount) &&
-      (void *)current_pass == (void *)&pass_ipa_pta)
+      (void *)current_pass == (void *)ipa_pta_)
     {
       will_call_ipa_pta = true;
       *(bool*)gcc_data = true;
@@ -167,12 +178,20 @@ insert_type_db (tree t)
   tree ty = TREE_TYPE (t);
 
   if (! sensi_func_types)
+#if BUILDING_GCC_VERSION < 7000
     sensi_func_types = pointer_set_create ();
-
+#else
+    sensi_func_types = new hash_set<tree>;
+#endif
+    
   gcc_assert (FUNCTION_POINTER_TYPE_P (TREE_TYPE (t)));
   gcc_assert (TREE_CODE (TREE_TYPE (ty)) == FUNCTION_TYPE);
 
+#if BUILDING_GCC_VERSION < 7000
   pointer_set_insert (sensi_func_types, (const void *)ty);
+#else
+  sensi_func_types->add ((const void*)ty);
+#endif
 
   return;
 }
@@ -403,8 +422,13 @@ rap_optimization_clean ()
   /* Now we have finish our job, close file and destroy the GCC allocated 
      data. */
   //fclose (dump_rap_opt_statistics_fd);
+
+#if BUILDING_GCC_VERSION < 7000
   bitmap_clear (sensi_funcs);
   pointer_set_destroy (sensi_func_types);
+#else
+  delete sensi_func_types;
+#endif
 
   return;
 }
