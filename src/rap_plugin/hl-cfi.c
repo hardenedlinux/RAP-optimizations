@@ -160,6 +160,8 @@ rap_try_call_ipa_pta (void* gcc_data, void* user_data)
 static inline bool 
 is_rap_function_may_be_aliased (tree f)
 {
+#if BUILDING_GCC_VERSION < 7000
+
   return (TREE_CODE (f) != CONST_DECL
 	  && !((TREE_STATIC (f) || TREE_PUBLIC (f) || DECL_EXTERNAL (f))
 	       && TREE_READONLY (f)
@@ -167,8 +169,20 @@ is_rap_function_may_be_aliased (tree f)
 	  && (TREE_PUBLIC (f)
 	      || DECL_EXTERNAL (f)
 	      || TREE_ADDRESSABLE (f)));
-}
 
+#else
+
+  return (TREE_CODE (f) != CONST_DECL
+	  && (TREE_PUBLIC (f)
+	      || DECL_EXTERNAL (f)
+	      || TREE_ADDRESSABLE (f))
+	  && !((TREE_STATIC (f) || TREE_PUBLIC (f) || DECL_EXTERNAL (f))
+	       && (TREE_READONLY (f)
+		   || (TREE_CODE (f) == VAR_DECL
+		       && DECL_NONALIASED (f)))));
+
+#endif
+}
 
 /* Tools for type database operates */
 
