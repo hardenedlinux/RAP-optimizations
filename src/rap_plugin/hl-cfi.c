@@ -57,9 +57,10 @@ static bitmap sensi_funcs;
 #if BUILDING_GCC_VERSION < 7000
 /* Contains the type database which are pointer analysis can not sloved */
 static struct pointer_set_t *sensi_func_types;
-#else
 /* gcc has change the struct gimple base type.!!!  */
-#define gimple gimple*
+#define gimple_t_ gimple
+#else
+#define gimple_t_ gimple*
 static hash_set<tree> *sensi_func_types;
 #endif
 
@@ -543,7 +544,7 @@ create:
 //free_dominance_info (enum cdi_direction dir)
 
 static tree
-build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
+build_cfi_hash_tree (gimple_t_ cs, int direct, tree *target_off_type_p)
 {
   //tree hash_tree, var;
   rap_hash_value_type val;
@@ -617,10 +618,10 @@ build_cfi_hash_tree (gimple cs, int direct, tree *target_off_type_p)
 /* Help function called when the fe-cfi violate catched. */
 
 static basic_block
-cfi_catch_and_trap_bb (gimple cs, basic_block after)
+cfi_catch_and_trap_bb (gimple_t_ cs, basic_block after)
 {
   tree trap;
-  gimple g;
+  gimple_t_ g;
   gimple_seq seq;
   basic_block bb;
 #if 0
@@ -707,12 +708,12 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *const gp,
 			       tree t_, 
 			       tree t_t)
 {
-  const gimple cs = gsi_stmt (*gp);
-  gimple g;
+  const gimple_t_ cs = gsi_stmt (*gp);
+  gimple_t_ g;
   gimple_stmt_iterator gsi;
-  gimple assign;  // used for dumps.
-  gimple cond;    // test gimple we insert.
-  gimple call;    // call label gimple we insert.
+  gimple_t_ assign;  // used for dumps.
+  gimple_t_ cond;    // test gimple we insert.
+  gimple_t_ call;    // call label gimple we insert.
   basic_block old_bb;
   basic_block catch_bb;
   edge edge_false;
@@ -840,7 +841,7 @@ insert_cond_and_build_ssa_cfg (gimple_stmt_iterator *const gp,
 static void
 build_cfi (gimple_stmt_iterator *labile_gsi_addr, basic_block* labile_bb_addr)
 {
-  gimple cs;
+  gimple_t_ cs;
   tree th;  // hash get behind the function definitions.
   tree sh;  // hash get before indirect calls.
   tree target_off_type = NULL;
@@ -964,7 +965,7 @@ hl_cfi_execute ()
 	       gsi_next (&labile_gsi))
 	    {
 	      //tree decl;
-	      gimple cs;
+	      gimple_t_ cs;
 	      //tree hash;
 	      cs = gsi_stmt (labile_gsi);
 	      /* We are in forward cfi only cares about function call */
