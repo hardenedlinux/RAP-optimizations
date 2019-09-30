@@ -25,7 +25,7 @@ Control-flow integrity(CFI)是针对这种攻击进行防御的。此外常规�
 
 自从CFI[@Abadi05]提出以来，各种实现层出不群，包括gcc upstream里的vtv以及LLVM cfi。不过这些实现有明显的硬伤，vtv防御
 virtual table，LLVM cfi只是一个forward cfi实现，没有backward部分。比较而言，PaX/Grsecurity RAP[@PaX18]对于kernel级别的
-防护是最理想的选择，不经包括forward而且包括backward实现，backward cfi的实现应该是业界第一个也是唯一一个可以进入生产环境
+防护是最理想的选择，不经包括forward而且包括backward实现，backward cfi的实现应该是业界第一个也是为数不多的可以进入生产环境
 的。
 
 ### 贡献
@@ -139,7 +139,7 @@ insertHashValueCheckBeforeCurrentIndirectCall(currentPointer, hashValue);
 
 1) 因为RAP没有使用pointer analysis，所以会对全部函数都输出hash值。
 2) 上面的伪代码在RAP的实现上是在tree-ssa表示层，所以其实是几条gimple等效的伪代码，但是RAP的实现上这些gimple代码是作为一个整体插入gcc的，而且插入的位置是gcc的所有tree-ssa优化pass之后，也就是gcc根本不会感知到这些代码的存在，也就是说gcc不会去分析这些代码，也不会去优化这些代码。
-3) 安全上的考虑，RAP的实现是针对函数类型编码hash，所有函数类型都是同一个hash值，所以这是一个可能的漏洞。
+3) 安全上的考虑，RAP的实现是针对函数类型编码hash，所有函数类型都是同一个hash值，所以这是一个可能的漏洞利用平面。
 
 基于以上的三个问题所以我们给出了Hardenedlinux hl-cfi的实现(hl的意思high level)。
 
@@ -223,7 +223,7 @@ for all gimple code of all function
 
 ### RAP backward cfi
 
-为了解决 __ret__ 的问题，PaX Team提出了世界上大概唯一一个backward cfi的软件实现方案。
+为了解决 __ret__ 的问题，PaX Team提出了backward cfi的软件实现方案。
 
 ```
 for all rtl code of all function
@@ -243,8 +243,8 @@ insertRetCheck(retAddress, hashValue)
     catchAttack();
 ```
 
-对于backward cfi来说这大概是业界唯一的实现，而且跟RAP forward cfi的一样，也是一串没有经过编译器优化的代码直接出现在输出
-的object里，不过这是唯一的算法，实在想不到优化的方案，只能期待硬件更新支持backward cfi，比如类似ARM PA[@zet17]。
+对于backward cfi来说这大概是业界仅有的几个的实现，而且跟RAP forward cfi的一样，也是一串没有经过编译器优化的代码直接出现
+在输出的object里，不过想不到优化的方案，只能期待硬件更新支持backward cfi，比如类似ARM PA[@zet17]以及intel SGX等。
 
 ## 4 结论
 
