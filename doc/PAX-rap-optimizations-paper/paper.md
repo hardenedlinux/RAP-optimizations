@@ -29,7 +29,7 @@ virtual table，LLVM cfi只是一个forward cfi实现，没有backward部分。�
 的。
 
 ### 贡献
-本文主要是贡献是从编译器角度分析PaX RAP以及Hardlinux hl-cfi[@Hardenedlinux18]的改进以及实现。
+本文主要是贡献是从编译器角度分析PaX RAP以及HardenedLinux hl-cfi[@Hardenedlinux18]的改进以及实现。
 
 ### 内容
 本文的内容安排包括：2 背景，3 算法与实现，4 结论以及未来工作。
@@ -53,7 +53,7 @@ Control-flow integrity（CFI)[@Abadi05]。原理就是在编译器编译最开�
 
 ## 3 算法与实现
 
-根据公开的文献记载，PaX RAP针对ROP的威胁建模和初始设计[@paxfuture]在2003年时已经存在。下面将描述PaX RAP的算法及其实现，分析这种方式带来的性能损耗，和Hardenedlinux社区所做的优化改进。
+根据公开的文献记载，PaX RAP针对ROP的威胁建模和初始设计[@paxfuture]在2003年时已经存在。下面将描述PaX RAP的算法及其实现，分析这种方式带来的性能损耗，和HardenedLinux社区所做的优化改进。
 
 由上一节背景的描述可知，ROP发生的根源就是因为违反了原始代码的控制流。所以对于相应的检测防御也很简单：在原始控制流转移的
 地方由编译器插入检测代码。这其中就会有一个trade-off的考虑:怎么样在保证一定精度的情况下作出防御？
