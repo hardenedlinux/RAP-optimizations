@@ -53,7 +53,7 @@ Control-flow integrity（CFI)[@Abadi05]。原理就是在编译器编译最开�
 
 ## 3 算法与实现
 
-下面将描述PaX RAP的算法及其实现，分析这种方式带来的性能损耗，和Hardenedlinux社区所做的优化改进。
+根据公开的文献记载，PaX RAP针对ROP的威胁建模和初始设计[@paxfuture]在2003年时已经存在。下面将描述PaX RAP的算法及其实现，分析这种方式带来的性能损耗，和Hardenedlinux社区所做的优化改进。
 
 由上一节背景的描述可知，ROP发生的根源就是因为违反了原始代码的控制流。所以对于相应的检测防御也很简单：在原始控制流转移的
 地方由编译器插入检测代码。这其中就会有一个trade-off的考虑:怎么样在保证一定精度的情况下作出防御？
@@ -244,7 +244,7 @@ insertRetCheck(retAddress, hashValue)
 ```
 
 对于backward cfi来说这大概是业界仅有的几个的实现，而且跟RAP forward cfi的一样，也是一串没有经过编译器优化的代码直接出现
-在输出的object里，不过想不到优化的方案，只能期待硬件更新支持backward cfi，比如类似ARM PA[@zet17]以及intel SGX等。
+在输出的object里，不过想不到优化的方案，只能期待硬件更新支持backward cfi，比如类似ARMv8.3的PA[@zet17]， ARMv8.5的MTE[@armmte]以及未来的Intel CET[@intelcet]等。
 
 ## 4 结论
 
