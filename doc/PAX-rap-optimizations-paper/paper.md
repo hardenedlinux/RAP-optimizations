@@ -141,7 +141,7 @@ insertHashValueCheckBeforeCurrentIndirectCall(currentPointer, hashValue);
 2) 上面的伪代码在RAP的实现上是在tree-ssa表示层，所以其实是几条gimple等效的伪代码，但是RAP的实现上这些gimple代码是作为一个整体插入gcc的，而且插入的位置是gcc的所有tree-ssa优化pass之后，也就是gcc根本不会感知到这些代码的存在，也就是说gcc不会去分析这些代码，也不会去优化这些代码。
 3) 安全上的考虑，RAP的实现是针对函数类型编码hash，所有函数类型都是同一个hash值，所以这是一个可能的漏洞利用平面。
 
-基于以上的三个问题所以我们给出了Hardenedlinux hl-cfi的实现(hl的意思high level)。
+基于以上的三个问题所以我们给出了HardenedLinux hl-cfi的实现(hl的意思high level)。
 
 _hl-cfi alogrithms:_
 
