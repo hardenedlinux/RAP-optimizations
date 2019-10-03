@@ -15,3 +15,8 @@ RAP( Return address protection) is the most powerful kernel CFI implementation i
 * [RAP: RIP ROP](https://pax.grsecurity.net/docs/PaXTeam-H2HC15-RAP-RIP-ROP.pdf)
 * [FAQ RAP](https://grsecurity.net/rap_faq.php)
 * [Close, but No Cigar: On the Effectiveness of Intel's CET Against Code Reuse Attacks](https://grsecurity.net/effectiveness_of_intel_cet_against_code_reuse_attacks.php)
+
+
+## Epilogue
+
+[RAP-optimization summary and ending](https://github.com/hardenedlinux/RAP-optimizations/issues/2), Oct 2 2019
